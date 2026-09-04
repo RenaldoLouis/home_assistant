@@ -1,0 +1,76 @@
+# OSX
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+.pnp
+.pnp.js
+
+# Ruby / Bundler
+.bundle/
+vendor/bundle/
+vendor/
+*.gem
+
+# React Native / Expo
+.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Android
+JarvisAssistant/android/.gradle/
+JarvisAssistant/android/local.properties
+JarvisAssistant/android/build/
+JarvisAssistant/android/app/build/
+JarvisAssistant/android/.idea/
+*.iml
+*.hprof
+.cxx/
+
+# iOS
+JarvisAssistant/ios/Pods/
+JarvisAssistant/ios/build/
+JarvisAssistant/ios/DerivedData/
+JarvisAssistant/ios/*.xcworkspace/xcuserdata/
+JarvisAssistant/ios/*.xcodeproj/xcuserdata/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+logs
+*.log
+
+# Antigravity / Agents
+.agents/scratch/
+skills-lock.json
+
+# Gemini / Keys (just to be safe)
+*google-services.json
+*GoogleService-Info.plist
