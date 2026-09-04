@@ -27,8 +27,8 @@ import { BarChart } from 'react-native-chart-kit';
 
 const bleManager = new BleManager();
 
-// TODO: Replace with your actual Gemini API Key securely from environment
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || 'YOUR_API_KEY_HERE';
+// TODO: Replace with your actual Gemini API Key securely from environment or config
+const GEMINI_API_KEY: string = 'YOUR_GEMINI_API_KEY_HERE';
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({
@@ -368,9 +368,12 @@ export default function App() {
           if (args.app.toLowerCase() === 'spotify') {
             try {
               // Open Spotify and try to send a play command
-              await SendIntentAndroid.openApp('com.spotify.music');
+              await SendIntentAndroid.openApp('com.spotify.music', {});
               setTimeout(() => {
-                SendIntentAndroid.sendMediaButton(126); // 126 is KEYCODE_MEDIA_PLAY
+                // @ts-ignore - sendMediaButton might be a custom native extension
+                if (typeof (SendIntentAndroid as any).sendMediaButton === 'function') {
+                  (SendIntentAndroid as any).sendMediaButton(126); // 126 is KEYCODE_MEDIA_PLAY
+                }
               }, 2000);
             } catch (err) {
               console.log('Failed to launch Spotify:', err);
