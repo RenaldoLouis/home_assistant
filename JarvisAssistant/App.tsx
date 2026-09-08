@@ -1,136 +1,24 @@
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
-
-import React, { useEffect, useState, useCallback } from 'react';
-import {
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  View,
-  PermissionsAndroid,
-  Platform,
-  TouchableOpacity,
-  Linking,
-  ScrollView,
-  Dimensions,
-  NativeModules,
-  NativeEventEmitter,
-  Modal,
-  AppState,
-} from 'react-native';
-import SendIntentAndroid from 'react-native-send-intent';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { AppState } from 'react-native';
 import RNAndroidNotificationListener from 'react-native-android-notification-listener';
-import { BleManager } from 'react-native-ble-plx';
-import { getFirestore, collection, doc, query, where, getDocs, onSnapshot, writeBatch, updateDoc } from '@react-native-firebase/firestore';
-import 'react-native-get-random-values';
-import { v4 as uuidv4 } from 'uuid';
-import { BarChart } from 'react-native-chart-kit';
+import { getFirestore, collection, doc, onSnapshot, updateDoc } from '@react-native-firebase/firestore';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { OrbState } from './src/components/JarvisOrb';
-
-const bleManager = new BleManager();
-
-// TODO: Replace with your actual Gemini API Key securely from environment or config
-const GEMINI_API_KEY: string = 'YOUR_GEMINI_API_KEY_HERE';
-
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({
-  model: 'gemini-3.6-flash',
-  tools: [{
-    functionDeclarations: [
-      {
-        name: 'control_light',
-        description: 'Turn a smart light on or off.',
-        parameters: {
-          type: SchemaType.OBJECT,
-          properties: {
-            state: { type: SchemaType.BOOLEAN, description: 'True to turn on, false to turn off.' },
-            protocol: { type: SchemaType.STRING, description: 'Either "wifi" or "ble". Defaults to wifi if unspecified.' }
-          },
-          required: ['state', 'protocol']
-        }
-      },
-      {
-        name: 'play_music',
-        description: 'Play music on a specific app like Spotify.',
-        parameters: {
-          type: SchemaType.OBJECT,
-          properties: {
-            app: { type: SchemaType.STRING, description: 'The name of the app to play music on, e.g., "spotify".' }
-          },
-          required: ['app']
-        }
-      },
-      {
-        name: 'get_todos',
-        description: 'Get the list of to-do items from the Boba To-Do List app.',
-        parameters: {
-          type: SchemaType.OBJECT,
-          properties: {
-            date: { type: SchemaType.STRING, description: 'Optional date to filter tasks (YYYY-MM-DD). If omitted, gets today.' }
-          }
-        }
-      },
-      {
-        name: 'create_subtasks',
-        description: 'Create subtasks for an existing to-do item.',
-        parameters: {
-          type: SchemaType.OBJECT,
-          properties: {
-            parentTaskId: { type: SchemaType.STRING, description: 'The ID of the parent task.' },
-            subtasks: {
-              type: SchemaType.ARRAY,
-              items: { type: SchemaType.STRING },
-              description: 'List of subtask titles.'
-            }
-          },
-          required: ['parentTaskId', 'subtasks']
-        }
-      },
-      {
-        name: 'reschedule_todo',
-        description: 'Reschedule a to-do item to a new date.',
-        parameters: {
-          type: SchemaType.OBJECT,
-          properties: {
-            taskId: { type: SchemaType.STRING, description: 'The ID of the task to reschedule.' },
-            newDate: { type: SchemaType.STRING, description: 'The new date (YYYY-MM-DD) or "tomorrow".' }
-          },
-          required: ['taskId', 'newDate']
-        }
-      },
-      {
-        name: 'complete_todo',
-        description: 'Mark a to-do item as completed.',
-        parameters: {
-          type: SchemaType.OBJECT,
-          properties: {
-            taskId: { type: SchemaType.STRING, description: 'The ID of the task to complete.' }
-          },
-          required: ['taskId']
-        }
-      },
-      {
-        name: 'get_daily_recap',
-        description: 'Get a recap of all daily expenses tracked today.',
-        parameters: {
-          type: SchemaType.OBJECT,
-          properties: {
-            date: { type: SchemaType.STRING, description: 'Optional date (YYYY-MM-DD) to get the recap for. If omitted, gets today.' }
-          }
-        }
-      }
-    ]
-  }]
-});
-const { SpeechRecognizerModule, TtsModule } = NativeModules;
-const Tts = TtsModule;
+import { JARVIS_USER_ID } from './src/expenses/constants';
+import { buildExpenseSummary } from './src/expenses/expenseSummary';
+import {
+  buildExpenseCategoryOptions,
+  normalizeExpenseCategory,
+} from './src/expenses/categories';
+import { EditableExpense } from './src/expenses/types';
 
 export default function App() {
   const [isRecordingCommand, setIsRecordingCommand] = useState(false);
-  const [commandText, setCommandText] = useState('');
+  const [commandText] = useState('');
   const [notifPermission, setNotifPermission] = useState<string>('unknown');
   const [showNotifModal, setShowNotifModal] = useState(false);
   const [dailyNotes, setDailyNotes] = useState('');
+  const [expenses, setExpenses] = useState<EditableExpense[]>([]);
   
   const [expenseData, setExpenseData] = useState({
     today: 0,
@@ -141,22 +29,6 @@ export default function App() {
       datasets: [{ data: [0, 0, 0, 0, 0, 0, 0] }]
     }
   });
-
-  // Request Permissions
-  const requestPermissions = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        ]);
-      } catch (err) {
-        console.warn(err);
-      }
-    }
-  };
 
   // Check notification listener permission
   const checkNotificationPermission = useCallback(async () => {
@@ -185,7 +57,64 @@ export default function App() {
       }
     });
 
-    
+    return () => {
+      subscription.remove();
+    };
+  }, [checkNotificationPermission]);
+
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+
+    try {
+      const db = getFirestore();
+      const expensesRef = collection(db, 'users', JARVIS_USER_ID, 'expenses');
+
+      unsubscribe = onSnapshot(
+        expensesRef,
+        snapshot => {
+          const savedExpenses = snapshot.docs
+            .map(expenseDoc => toEditableExpense(expenseDoc.id, expenseDoc.data()))
+            .filter((expense): expense is EditableExpense => expense !== null)
+            .sort((first, second) => Date.parse(second.date) - Date.parse(first.date));
+
+          setExpenses(savedExpenses);
+          setExpenseData(buildExpenseSummary(savedExpenses));
+        },
+        err => {
+          console.warn('[Jarvis] Failed to subscribe to expense updates:', err);
+        },
+      );
+    } catch (err) {
+      console.warn('[Jarvis] Failed to start expense subscription:', err);
+    }
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, []);
+
+  const categoryOptions = useMemo(
+    () => buildExpenseCategoryOptions(expenses.map(expense => expense.category)),
+    [expenses],
+  );
+
+  const handleExpenseCategoryChange = useCallback(async (expenseId: string, category: string) => {
+    const db = getFirestore();
+    const expenseRef = doc(collection(db, 'users', JARVIS_USER_ID, 'expenses'), expenseId);
+
+    await updateDoc(expenseRef, {
+      category: normalizeExpenseCategory(category),
+    });
+  }, []);
+
+  const startListening = () => {
+    setIsRecordingCommand(true);
+  };
+
+  const stopListening = () => {
+    setIsRecordingCommand(false);
+  };
+
   const orbState: OrbState = isRecordingCommand ? 'listening' : 'idle';
 
   return (
@@ -195,13 +124,87 @@ export default function App() {
       notifPermission={notifPermission}
       showNotifModal={showNotifModal}
       expenseData={expenseData}
+      expenses={expenses}
+      categoryOptions={categoryOptions}
       setShowNotifModal={setShowNotifModal}
       startListening={startListening}
       stopListening={stopListening}
+      onExpenseCategoryChange={handleExpenseCategoryChange}
       onRequestNotifPermission={() => RNAndroidNotificationListener.requestPermission()}
       dailyNotes={dailyNotes}
       setDailyNotes={setDailyNotes}
       orbState={orbState}
     />
   );
+}
+
+function toEditableExpense(expenseId: string, data: Record<string, unknown>): EditableExpense | null {
+  const amount = normalizeAmount(data.amount);
+  const date = normalizeDate(data.date) ?? normalizeDate(data.createdAt);
+
+  if (amount <= 0 || !date) {
+    return null;
+  }
+
+  return {
+    id: normalizeString(data.id) || expenseId,
+    amount,
+    merchant: normalizeString(data.merchant) || 'Unknown',
+    category: normalizeExpenseCategory(data.category),
+    bank: normalizeString(data.bank) || 'Unknown',
+    date,
+  };
+}
+
+function normalizeAmount(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.round(value);
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.round(parsed) : 0;
+  }
+
+  return 0;
+}
+
+function normalizeDate(value: unknown): string | null {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString();
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+
+  if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
+    const date = value.toDate();
+    return date instanceof Date && !Number.isNaN(date.getTime()) ? date.toISOString() : null;
+  }
+
+  if (
+    typeof value === 'object' &&
+    'seconds' in value &&
+    typeof value.seconds === 'number'
+  ) {
+    const nanoseconds =
+      'nanoseconds' in value && typeof value.nanoseconds === 'number'
+        ? value.nanoseconds
+        : 0;
+    const date = new Date(value.seconds * 1000 + Math.floor(nanoseconds / 1000000));
+
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+
+  return null;
+}
+
+function normalizeString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
 }

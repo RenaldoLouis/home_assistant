@@ -101,7 +101,7 @@ export const JarvisOrb: React.FC<JarvisOrbProps> = ({ state, size = 120 }) => {
           <Circle cx={size / 2} cy={size / 2} r={size / 2} fill="url(#grad)" />
         </Svg>
       </Animated.View>
-      <View style={[styles.core, { backgroundColor: '#FFFFFF', width: size * 0.3, height: size * 0.3 }]} />
+      <View style={[styles.core, { width: size * 0.3, height: size * 0.3 }]} />
     </View>
   );
 };
@@ -115,6 +115,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   core: {
+    backgroundColor: '#FFFFFF',
     borderRadius: 999,
     shadowColor: '#FFF',
     shadowOffset: { width: 0, height: 0 },

@@ -15,6 +15,7 @@ import { Colors } from '../theme/colors';
 import { JarvisOrb, OrbState } from '../components/JarvisOrb';
 import { GlassCard } from '../components/GlassCard';
 import { AnimatedPressable } from '../components/AnimatedPressable';
+import { EditableExpense } from '../expenses/types';
 
 interface ExpenseData {
   today: number;
@@ -32,9 +33,12 @@ interface DashboardScreenProps {
   notifPermission: string;
   showNotifModal: boolean;
   expenseData: ExpenseData;
+  expenses: EditableExpense[];
+  categoryOptions: string[];
   setShowNotifModal: (show: boolean) => void;
   startListening: () => void;
   stopListening: () => void;
+  onExpenseCategoryChange: (expenseId: string, category: string) => void;
   onRequestNotifPermission: () => void;
   dailyNotes: string;
   setDailyNotes: (notes: string) => void;
@@ -47,9 +51,12 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   notifPermission,
   showNotifModal,
   expenseData,
+  expenses,
+  categoryOptions,
   setShowNotifModal,
   startListening,
   stopListening,
+  onExpenseCategoryChange,
   onRequestNotifPermission,
   dailyNotes,
   setDailyNotes,
@@ -167,15 +174,60 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
               backgroundGradientToOpacity: 0,
               decimalPlaces: 0,
               color: (opacity = 1) => `rgba(10, 132, 255, ${opacity})`,
-              labelColor: (opacity = 1) => Colors.textSecondary,
+              labelColor: (_opacity = 1) => Colors.textSecondary,
               barPercentage: 0.6,
             }}
-            style={{ marginVertical: 8, borderRadius: 16 }}
+            style={styles.chart}
             showValuesOnTopOfBars={false}
           />
         </GlassCard>
 
-        <GlassCard style={[styles.sectionCard, { marginBottom: 40 }]}>
+        <GlassCard style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Recent Expenses</Text>
+          {expenses.length > 0 ? (
+            expenses.map(expense => (
+              <View key={expense.id} style={styles.expenseRow}>
+                <View style={styles.expenseInfo}>
+                  <Text style={styles.expenseAmount}>Rp {expense.amount.toLocaleString()}</Text>
+                  <Text style={styles.expenseMeta}>
+                    {expense.merchant} - {expense.bank}
+                  </Text>
+                </View>
+                <View style={styles.categoryOptions}>
+                  {categoryOptions.map(category => {
+                    const isSelected = expense.category === category;
+
+                    return (
+                      <AnimatedPressable
+                        key={category}
+                        style={[
+                          styles.categoryOption,
+                          isSelected && styles.categoryOptionSelected,
+                        ]}
+                        onPress={() => onExpenseCategoryChange(expense.id, category)}
+                        hapticStyle="selection"
+                      >
+                        <Text
+                          style={[
+                            styles.categoryOptionText,
+                            isSelected && styles.categoryOptionTextSelected,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {category}
+                        </Text>
+                      </AnimatedPressable>
+                    );
+                  })}
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.emptyExpenseText}>No tracked spending yet.</Text>
+          )}
+        </GlassCard>
+
+        <GlassCard style={styles.lastSectionCard}>
           <Text style={styles.sectionTitle}>Capabilities</Text>
           <Text style={styles.capabilityItem}>• "Jarvis, what are my tasks for today?"</Text>
           <Text style={styles.capabilityItem}>• "Jarvis, play some music"</Text>
@@ -206,7 +258,7 @@ const styles = StyleSheet.create({
     fontSize: 34,
     fontWeight: '800',
     color: Colors.textPrimary,
-    letterSpacing: -0.5,
+    letterSpacing: 0,
   },
   subtitle: {
     fontSize: 16,
@@ -251,6 +303,61 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     marginBottom: 20,
+  },
+  lastSectionCard: {
+    marginBottom: 40,
+  },
+  chart: {
+    marginVertical: 8,
+    borderRadius: 16,
+  },
+  expenseRow: {
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: Colors.cardBorder,
+  },
+  expenseInfo: {
+    marginBottom: 10,
+  },
+  expenseAmount: {
+    color: Colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  expenseMeta: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    marginTop: 4,
+  },
+  categoryOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryOption: {
+    minHeight: 44,
+    maxWidth: '100%',
+    justifyContent: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    paddingHorizontal: 12,
+  },
+  categoryOptionSelected: {
+    backgroundColor: Colors.accent,
+    borderColor: Colors.accent,
+  },
+  categoryOptionText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  categoryOptionTextSelected: {
+    color: Colors.textPrimary,
+  },
+  emptyExpenseText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
   },
   sectionHeader: {
     flexDirection: 'row',

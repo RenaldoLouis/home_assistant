@@ -19,4 +19,15 @@ buildscript {
     }
 }
 
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                ndkVersion = "27.1.12297006"
+            }
+        }
+    }
+}
+
 apply plugin: "com.facebook.react.rootproject"
+
