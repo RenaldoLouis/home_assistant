@@ -62,6 +62,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
   setDailyNotes,
   orbState,
 }) => {
+  console.log('[Jarvis Dashboard] Rendering DashboardScreen');
   return (
     <SafeAreaView style={styles.container}>
       {/* Notification Permission Modal */}

@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { AppState } from 'react-native';
+import React, { useEffect, useState, useCallback, useMemo, useRef, Component, ErrorInfo } from 'react';
+import { AppState, PermissionsAndroid, Platform, Linking, Text, View, ScrollView, SafeAreaView } from 'react-native';
 import RNAndroidNotificationListener from 'react-native-android-notification-listener';
 import { getFirestore, collection, doc, onSnapshot, updateDoc } from '@react-native-firebase/firestore';
 import { DashboardScreen } from './src/screens/DashboardScreen';
@@ -11,10 +11,55 @@ import {
   normalizeExpenseCategory,
 } from './src/expenses/categories';
 import { EditableExpense } from './src/expenses/types';
+import { GeminiLiveService, LiveSessionStatus, TranscriptEvent } from './src/services/GeminiLiveService';
+import { ToolExecutionHandlers } from './src/services/JarvisToolExecutor';
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends Component<{ children: React.ReactNode }, ErrorBoundaryState> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('[Jarvis ErrorBoundary caught]', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#1C1C1E', padding: 24, justifyContent: 'center' }}>
+          <Text style={{ color: '#FF453A', fontSize: 22, fontWeight: 'bold', marginBottom: 12 }}>
+            ⚠️ Render Crash Detected
+          </Text>
+          <Text style={{ color: '#FFFFFF', fontSize: 16, marginBottom: 8, fontWeight: '600' }}>
+            {this.state.error?.name}: {this.state.error?.message}
+          </Text>
+          <ScrollView style={{ maxHeight: 300, backgroundColor: '#0D0E12', padding: 12, borderRadius: 8 }}>
+            <Text style={{ color: '#8E8E93', fontSize: 12 }}>
+              {this.state.error?.stack}
+            </Text>
+          </ScrollView>
+        </SafeAreaView>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function App() {
+  console.log('[Jarvis App] Rendering App component...');
   const [isRecordingCommand, setIsRecordingCommand] = useState(false);
-  const [commandText] = useState('');
+  const [commandText, setCommandText] = useState('');
+  const [orbState, setOrbState] = useState<OrbState>('idle');
   const [notifPermission, setNotifPermission] = useState<string>('unknown');
   const [showNotifModal, setShowNotifModal] = useState(false);
   const [dailyNotes, setDailyNotes] = useState('');
@@ -29,6 +74,119 @@ export default function App() {
       datasets: [{ data: [0, 0, 0, 0, 0, 0, 0] }]
     }
   });
+
+  const liveServiceRef = useRef<GeminiLiveService | null>(null);
+
+  const toolHandlers: ToolExecutionHandlers = useMemo(() => ({
+    onGetDailyRecap: () => {
+      if (expenseData.today > 0) {
+        return `Today you have spent IDR ${expenseData.today.toLocaleString()} across your accounts.`;
+      }
+      return 'You have not recorded any spending yet today.';
+    },
+    onPlayMusic: async ({ app }) => {
+      console.log('[Jarvis Tools] Playing music on:', app);
+      return { success: true, message: `Playing music on ${app}` };
+    },
+    onControlLight: async ({ state, protocol }) => {
+      console.log(`[Jarvis Tools] Turning light ${state ? 'on' : 'off'} via ${protocol || 'wifi'}`);
+      return { success: true, message: `Turned the light ${state ? 'on' : 'off'}` };
+    },
+  }), [expenseData.today]);
+
+  useEffect(() => {
+    const liveService = new GeminiLiveService({
+      toolHandlers,
+    });
+    liveServiceRef.current = liveService;
+
+    const unsubStatus = liveService.on('status', (status: LiveSessionStatus) => {
+      if (status === 'listening') {
+        setOrbState('listening');
+        setIsRecordingCommand(true);
+      } else if (status === 'speaking') {
+        setOrbState('speaking');
+        setIsRecordingCommand(true);
+      } else if (status === 'idle' || status === 'disconnected') {
+        setOrbState('idle');
+        setIsRecordingCommand(false);
+      } else if (status === 'connecting') {
+        setOrbState('listening');
+        setIsRecordingCommand(true);
+        setCommandText('Connecting to Jarvis...');
+      } else if (status === 'error') {
+        setOrbState('idle');
+        setIsRecordingCommand(false);
+        setCommandText('Connection error. Please try again.');
+      }
+    });
+
+    const unsubTranscript = liveService.on('transcript', (evt: TranscriptEvent) => {
+      if (evt.role === 'user') {
+        setCommandText(`"${evt.text}"`);
+      } else {
+        setCommandText(`Jarvis: "${evt.text}"`);
+      }
+    });
+
+    return () => {
+      unsubStatus();
+      unsubTranscript();
+      liveService.stopSession();
+    };
+  }, [toolHandlers]);
+
+  // Request Android audio recording permission
+  const requestAudioPermission = useCallback(async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
+          {
+            title: 'Jarvis Microphone Permission',
+            message: 'Jarvis requires microphone access for real-time conversational voice interaction.',
+            buttonPositive: 'Grant Permission',
+          },
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn('[Jarvis] Error requesting RECORD_AUDIO permission:', err);
+        return false;
+      }
+    }
+    return true;
+  }, []);
+
+  const startListening = useCallback(async () => {
+    const granted = await requestAudioPermission();
+    if (!granted) {
+      console.warn('[Jarvis] Microphone permission denied');
+      return;
+    }
+    await liveServiceRef.current?.startSession();
+  }, [requestAudioPermission]);
+
+  const stopListening = useCallback(() => {
+    liveServiceRef.current?.stopSession();
+  }, []);
+
+  // Deep Link (e.g. from homescreen shortcut or widget: jarvis://listen)
+  useEffect(() => {
+    const handleDeepLink = (url: string | null) => {
+      if (url === 'jarvis://listen') {
+        setTimeout(() => startListening(), 500);
+      }
+    };
+
+    Linking.getInitialURL().then(handleDeepLink);
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      handleDeepLink(url);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [startListening]);
 
   // Check notification listener permission
   const checkNotificationPermission = useCallback(async () => {
@@ -107,34 +265,28 @@ export default function App() {
     });
   }, []);
 
-  const startListening = () => {
-    setIsRecordingCommand(true);
-  };
-
-  const stopListening = () => {
-    setIsRecordingCommand(false);
-  };
-
-  const orbState: OrbState = isRecordingCommand ? 'listening' : 'idle';
-
   return (
-    <DashboardScreen 
-      isRecordingCommand={isRecordingCommand}
-      commandText={commandText}
-      notifPermission={notifPermission}
-      showNotifModal={showNotifModal}
-      expenseData={expenseData}
-      expenses={expenses}
-      categoryOptions={categoryOptions}
-      setShowNotifModal={setShowNotifModal}
-      startListening={startListening}
-      stopListening={stopListening}
-      onExpenseCategoryChange={handleExpenseCategoryChange}
-      onRequestNotifPermission={() => RNAndroidNotificationListener.requestPermission()}
-      dailyNotes={dailyNotes}
-      setDailyNotes={setDailyNotes}
-      orbState={orbState}
-    />
+    <ErrorBoundary>
+      <DashboardScreen
+        isRecordingCommand={isRecordingCommand}
+        commandText={commandText}
+        orbState={orbState}
+        startListening={startListening}
+        stopListening={stopListening}
+        expenseData={expenseData}
+        notifPermission={notifPermission}
+        showNotifModal={showNotifModal}
+        setShowNotifModal={setShowNotifModal}
+        onRequestNotifPermission={() => {
+          RNAndroidNotificationListener.requestPermission();
+        }}
+        dailyNotes={dailyNotes}
+        setDailyNotes={setDailyNotes}
+        expenses={expenses}
+        categoryOptions={categoryOptions}
+        onExpenseCategoryChange={handleExpenseCategoryChange}
+      />
+    </ErrorBoundary>
   );
 }
 

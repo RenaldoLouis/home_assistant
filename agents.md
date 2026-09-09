@@ -297,3 +297,28 @@ Before committing any code:
 - [ ] Accessibility: touch targets ≥ 44pt, reduced motion respected
 - [ ] All tests pass
 - [ ] Animation review checklist (section 11 above) passes for any new motion
+
+
+<claude-mem-context>
+# Memory Context
+
+# [Home Assistant] recent context, 2026-09-06 10:31am GMT+7
+
+Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
+Format: ID TIME TYPE TITLE
+Fetch details: get_observations([IDs]) | Search: mem-search skill
+
+Stats: 7 obs (1,958t read) | 82,940t work | 98% savings
+
+### Sep 5, 2026
+2573 10:09a 🟣 Expense Category Management System
+2574 " 🔴 TypeScript Type Safety in App Test Suite
+2575 " ✅ Notification Expense Reader Documentation Enhanced
+### Sep 6, 2026
+2581 10:27a 🔴 Notification expenses invisible when Firestore returns timestamp objects
+2582 " 🔴 Headless task fails to generate expense document IDs
+2583 " ✅ Test suite updated for timestamp and headless scenarios
+2584 " ✅ Dashboard UI and documentation clarified for recent expenses
+
+Access 83k tokens of past work via get_observations([IDs]) or mem-search skill.
+</claude-mem-context>

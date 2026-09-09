@@ -17,6 +17,7 @@ describe('notification headless task registration', () => {
           registerHeadlessTask,
         },
       }));
+      jest.doMock('react-native-gesture-handler', () => undefined);
       jest.doMock('react-native-get-random-values', () => undefined);
       jest.doMock('react-native-android-notification-listener', () => ({
         __esModule: true,
