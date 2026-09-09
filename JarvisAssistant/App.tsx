@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef, Component, ErrorInfo } from 'react';
-import { AppState, PermissionsAndroid, Platform, Linking, Text, View, ScrollView, SafeAreaView } from 'react-native';
+import { AppState, PermissionsAndroid, Platform, Linking, Text, ScrollView, SafeAreaView } from 'react-native';
 import RNAndroidNotificationListener from 'react-native-android-notification-listener';
 import { getFirestore, collection, doc, onSnapshot, updateDoc } from '@react-native-firebase/firestore';
 import { DashboardScreen } from './src/screens/DashboardScreen';
@@ -101,15 +101,18 @@ export default function App() {
     liveServiceRef.current = liveService;
 
     const unsubStatus = liveService.on('status', (status: LiveSessionStatus) => {
+      console.log('[Jarvis App] Live status changed to:', status);
       if (status === 'listening') {
         setOrbState('listening');
         setIsRecordingCommand(true);
+        setCommandText(prev => (prev.startsWith('"') || prev.startsWith('Jarvis:') ? prev : 'Listening...'));
       } else if (status === 'speaking') {
         setOrbState('speaking');
         setIsRecordingCommand(true);
       } else if (status === 'idle' || status === 'disconnected') {
         setOrbState('idle');
         setIsRecordingCommand(false);
+        setCommandText(prev => (prev === 'Connecting to Jarvis...' ? '' : prev));
       } else if (status === 'connecting') {
         setOrbState('listening');
         setIsRecordingCommand(true);

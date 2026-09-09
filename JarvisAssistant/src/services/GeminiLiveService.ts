@@ -130,22 +130,26 @@ export class GeminiLiveService {
         }
       };
 
-      this.ws.onmessage = async (event: { data: string }) => {
+      this.ws.onmessage = async (event: any) => {
         try {
-          const message = JSON.parse(event.data);
-          await this.handleServerMessage(message);
+          const parsed = this.parseEventData(event.data);
+          const message = parsed instanceof Promise ? await parsed : parsed;
+          if (message) {
+            await this.handleServerMessage(message);
+          }
         } catch (parseErr) {
-          console.error('[GeminiLiveService] Failed to parse server message:', parseErr);
+          console.error('[GeminiLiveService] Failed to parse server message:', parseErr, 'type:', typeof event?.data);
         }
       };
 
-      this.ws.onerror = (event: unknown) => {
-        const error = new Error('Gemini Live WebSocket encountered an error');
-        console.error('[GeminiLiveService] WebSocket error:', event);
-        this.emit('error', error);
+      this.ws.onerror = (event: any) => {
+        const errorMsg = event?.message || 'Gemini Live WebSocket encountered an error';
+        console.error('[GeminiLiveService] WebSocket error:', errorMsg, event);
+        this.emit('error', new Error(errorMsg));
       };
 
-      this.ws.onclose = () => {
+      this.ws.onclose = (event: any) => {
+        console.log('[GeminiLiveService] WebSocket closed:', event?.code, event?.reason);
         this.cleanup();
         this.setStatus('disconnected');
       };
@@ -231,6 +235,50 @@ export class GeminiLiveService {
     };
 
     this.ws.send(JSON.stringify(audioPayload));
+  }
+
+  private parseEventData(data: unknown): Record<string, unknown> | Promise<Record<string, unknown> | null> | null {
+    if (!data) return null;
+
+    if (typeof data === 'string') {
+      return JSON.parse(data);
+    }
+
+    if (typeof data === 'object') {
+      if (typeof Blob !== 'undefined' && data instanceof Blob) {
+        return (async () => {
+          let text = '';
+          if (typeof (data as any).text === 'function') {
+            text = await (data as any).text();
+          } else if (typeof FileReader !== 'undefined') {
+            text = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsText(data as Blob);
+            });
+          }
+          return JSON.parse(text);
+        })();
+      }
+
+      if (data instanceof ArrayBuffer) {
+        let text = '';
+        if (typeof (globalThis as any).TextDecoder !== 'undefined') {
+          text = new (globalThis as any).TextDecoder().decode(data);
+        } else {
+          const bytes = new Uint8Array(data);
+          for (let i = 0; i < bytes.length; i++) {
+            text += String.fromCharCode(bytes[i]);
+          }
+        }
+        return JSON.parse(text);
+      }
+
+      return data as Record<string, unknown>;
+    }
+
+    return null;
   }
 
   private async handleServerMessage(message: Record<string, unknown>): Promise<void> {
