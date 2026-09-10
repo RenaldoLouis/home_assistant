@@ -302,13 +302,13 @@ Before committing any code:
 <claude-mem-context>
 # Memory Context
 
-# [Home Assistant] recent context, 2026-09-06 10:31am GMT+7
+# [Home Assistant] recent context, 2026-09-10 11:53am GMT+7
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 7 obs (1,958t read) | 82,940t work | 98% savings
+Stats: 15 obs (4,280t read) | 201,922t work | 98% savings
 
 ### Sep 5, 2026
 2573 10:09a 🟣 Expense Category Management System
@@ -319,6 +319,15 @@ Stats: 7 obs (1,958t read) | 82,940t work | 98% savings
 2582 " 🔴 Headless task fails to generate expense document IDs
 2583 " ✅ Test suite updated for timestamp and headless scenarios
 2584 " ✅ Dashboard UI and documentation clarified for recent expenses
+2585 10:32a 🔴 Fixed notification expense parser uuid initialization failure
+2586 " 🔴 Enhanced Firestore timestamp parsing for expense date normalization
+2587 " 🟣 Added category management for expense tracking
+2588 " ✅ Renamed expense section from daily view to recent historical view
+2589 " 🟣 Added comprehensive test coverage for notification expense flow
+2590 " ✅ Release APK built and verified for deployment
+### Sep 10, 2026
+2749 11:38a ⚖️ Daily Dashboard Redesign Specification and Data Requirements
+2750 " 🔵 Hardware Control Handlers Are Non-Functional Stubs
 
-Access 83k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 202k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

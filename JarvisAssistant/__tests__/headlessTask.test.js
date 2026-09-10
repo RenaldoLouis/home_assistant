@@ -87,3 +87,26 @@ describe('notification expense headless task', () => {
     );
   });
 });
+
+it('uses notification posting time when a delayed expense is processed after midnight', async () => {
+  jest.useFakeTimers().setSystemTime(new Date('2026-09-11T01:00:00.000Z'));
+  try {
+    await headlessTask({
+      notification: {
+        app: 'id.co.bca.mybca',
+        title: 'Financial Diary',
+        text: 'You spent IDR 25.000 at Food.',
+        time: String(Date.parse('2026-09-10T16:55:00.000Z')),
+      },
+    });
+    expect(setDoc).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        date: '2026-09-10T16:55:00.000Z',
+        dateSource: 'notification',
+      }),
+    );
+  } finally {
+    jest.useRealTimers();
+  }
+});

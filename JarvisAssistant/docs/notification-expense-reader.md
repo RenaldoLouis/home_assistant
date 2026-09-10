@@ -72,3 +72,42 @@ timestamps as `{ seconds, nanoseconds }` instead of objects with `toDate()`.
 After installing a build with notification-listener changes, open Android Settings and re-enable
 Notification Access for Jarvis. Some Android builds keep the old listener component until access is
 toggled off and back on.
+
+## Daily dashboard and corrections (2026-09-10)
+
+The redesigned dashboard groups timestamps using the phone's current timezone. The date
+selector, weekly chart, and `get_daily_recap` handler share `buildDayReport`. Calendar
+boundaries use local calendar constructors rather than adding 24 hours, so daylight-saving
+transitions do not lose late-night spending. Today refreshes while the app is open and on
+returning to the foreground. Changing the phone timezone can move an expense to another day.
+
+New records use the notification's posting timestamp when valid and not in the future;
+otherwise they use capture time. The installed listener's `RNNotification.java` serializes
+`StatusBarNotification.getPostTime()` as an epoch-millisecond string. `dateSource` is either
+`notification` or `capture`. Posting time is a proxy, not proof of transaction time. Existing
+records retain their dates, including the existing `createdAt` fallback.
+
+An edit updates amount, category, and optional corrected date on the same document. Amounts
+must be positive whole rupiah values. `originalAmount` and `originalCategory` retain the first
+captured values; `updatedAt` is a server timestamp. No collection migration or history rewrite
+is required. Existing unknown document fields are preserved by `updateDoc`.
+
+Snapshot metadata distinguishes cached records and pending changes from server-confirmed
+updates. The editor can be closed while a write is pending. If that write later fails, the
+app retains an error banner with Retry and Dismiss actions outside the editor. Spoken recaps
+qualify cached/pending totals and do not report zero when loading or unavailable. Updating
+expense data replaces tool handlers without recreating the active voice service.
+
+Raw notification payload and parsed financial-value debug logs have been removed from the
+headless task. The existing notification matching and native listener behavior are retained.
+
+References:
+
+- [Android notification posting time](https://developer.android.com/reference/android/service/notification/StatusBarNotification#getPostTime())
+- [React Native Firebase snapshots and updates](https://rnfirebase.io/firestore/usage)
+- [Firestore server timestamps](https://firebase.google.com/docs/firestore/manage-data/add-data#server_timestamp)
+
+Live database inspection was unavailable during this update because Firebase CLI credentials
+had expired. No database instance, rules, or indexes were changed. The existing default
+Firestore connection and document APIs are retained. Verify correction permissions and sync
+behavior on the signed-in phone before treating the release as device-verified.

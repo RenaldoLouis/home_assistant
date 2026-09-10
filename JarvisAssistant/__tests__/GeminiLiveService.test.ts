@@ -36,7 +36,7 @@ class MockWebSocket {
 }
 
 // Assign global mock
-(global as unknown as { WebSocket: typeof MockWebSocket }).WebSocket = MockWebSocket;
+(globalThis as unknown as { WebSocket: typeof MockWebSocket }).WebSocket = MockWebSocket;
 
 describe('GeminiLiveService', () => {
   let service: GeminiLiveService;
@@ -78,7 +78,7 @@ describe('GeminiLiveService', () => {
     expect(ws.url).toContain('key=test-api-key');
 
     // Wait a tick for onopen
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise<void>(resolve => setTimeout(resolve, 10));
 
     expect(ws.sentMessages.length).toBeGreaterThanOrEqual(1);
     const setupMsg = JSON.parse(ws.sentMessages[0]);
@@ -90,7 +90,7 @@ describe('GeminiLiveService', () => {
 
   it('forwards mic audio chunks to WebSocket', async () => {
     await service.startSession();
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise<void>(resolve => setTimeout(resolve, 10));
 
     const ws = MockWebSocket.instances[0];
     ws.sentMessages = []; // reset
@@ -106,7 +106,7 @@ describe('GeminiLiveService', () => {
 
   it('routes incoming audio chunks to NativeModules.LiveAudioModule.playAudioChunk', async () => {
     await service.startSession();
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise<void>(resolve => setTimeout(resolve, 10));
 
     const ws = MockWebSocket.instances[0];
 
@@ -130,7 +130,7 @@ describe('GeminiLiveService', () => {
 
   it('handles barge-in / interruption by immediately stopping audio playback', async () => {
     await service.startSession();
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise<void>(resolve => setTimeout(resolve, 10));
 
     const ws = MockWebSocket.instances[0];
 
@@ -148,7 +148,7 @@ describe('GeminiLiveService', () => {
     service.on('transcript', transcriptSpy);
 
     await service.startSession();
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise<void>(resolve => setTimeout(resolve, 10));
 
     const ws = MockWebSocket.instances[0];
 
@@ -174,7 +174,7 @@ describe('GeminiLiveService', () => {
     service.setToolHandlers({ onControlLight: mockLightHandler });
 
     await service.startSession();
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise<void>(resolve => setTimeout(resolve, 10));
 
     const ws = MockWebSocket.instances[0];
     ws.sentMessages = []; // clear setup message
@@ -192,7 +192,7 @@ describe('GeminiLiveService', () => {
     });
 
     // Wait for tool execution
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise<void>(resolve => setTimeout(resolve, 10));
 
     expect(mockLightHandler).toHaveBeenCalledWith({ state: true, protocol: 'ble' });
     expect(ws.sentMessages.length).toBe(1);

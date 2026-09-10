@@ -5,4 +5,12 @@ export interface EditableExpense {
   category: string;
   bank: string;
   date: string;
+  originalAmount?: number;
+  originalCategory?: string;
+}
+
+export interface ExpenseEdit {
+  amount: number;
+  category: string;
+  date: string;
 }

@@ -1,7 +1,8 @@
 # Jarvis daily dashboard redesign
 
-Status: proposal, 2026-09-10. Navigation and reporting timezone await the user's decision.
-This document records the design review; no application or Firebase data has been changed.
+Status: implementation, 2026-09-10. User approved spending-first navigation with persistent
+Ask Jarvis and a Home screen, and selected the phone's timezone. Application changes are
+implemented; no live Firebase migration has been performed.
 
 ## Product intent
 
@@ -40,7 +41,7 @@ Recommended navigation: Today for daily spending, Home for device controls, plus
 Ask Jarvis. Settings contains notification access and setup. Existing notes are not part of
 the user's stated feature priorities; decide their placement during the visual review.
 
-## Verified local implementation
+## Source findings before the redesign
 
 - `headlessTask.js` writes one expense document with amount, merchant, category, bank, ISO
   `date`, server `createdAt`, and optional `notificationTime`.
@@ -76,8 +77,8 @@ dates or mass-rewrite records. A derived YYYY-MM-DD reporting key may help queri
 but is not necessary merely to render a week selector. Any later range-query transition
 must keep older records visible while timestamp fields are standardized.
 
-The reporting timezone is a product decision. Recommended: Asia/Jakarta, so historical day
-totals remain stable when the phone changes timezone. Explicit voice requests such as
+The user selected the phone's current timezone. Historical day totals may change when the
+phone changes timezone; stored timestamps remain unchanged. Explicit voice requests such as
 “today” use the actual current day; browsing an older date must not change their meaning.
 
 ## Acceptance checks for implementation
@@ -98,3 +99,28 @@ totals remain stable when the phone changes timezone. Explicit voice requests su
 - [Firestore writes and server timestamps](https://firebase.google.com/docs/firestore/manage-data/add-data#server_timestamp): server timestamps track server receipt, not spending time.
 - [Firestore query operators](https://firebase.google.com/docs/firestore/query-data/queries#query_operators): range filters support bounded history queries after consistent date storage is established.
 - [Android accessibility](https://developer.android.com/design/ui/mobile/guides/foundations/accessibility): 48 dp touch targets and accessible alternatives to gesture-only actions.
+
+
+## Implemented design and deferred hardware
+
+The dashboard now uses circular week dates, a selected-day total and weekly bars, editable
+expense cards, and Today/Home navigation with persistent Ask Jarvis. A calendar supports
+older history; the editor supports category, amount, and date corrections. Settings retains
+the existing notes as an explicitly session-only scratchpad. Existing notes were never persisted.
+
+The Home screen identifies the user's Prolink DS-3601 (9W) lamp, currently controlled through
+mEzee, as Setup next. Integrating it is explicitly deferred until after the UI rework.
+The Bluetooth speaker is Awaiting arrival; pairing and music playback will be tested at home.
+No mEzee/Tuya compatibility or remote-control capability has been assumed. Voice handlers
+return unavailable results for these integrations instead of false success.
+
+Use 48 dp minimum date targets, no animation on tab/day changes, and Reanimated press feedback
+at 120 ms on the UI thread with system reduced-motion support. Sheets use a gentle opacity
+transition. No packages were added. The styling is built from system fonts and local SVG icons.
+
+Implementation references:
+- [Android accessibility](https://developer.android.com/design/ui/mobile/guides/foundations/accessibility)
+- [React Native Modal](https://reactnative.dev/docs/modal)
+- [Reanimated timing and reduced motion](https://docs.swmansion.com/react-native-reanimated/docs/animations/withTiming/)
+
+Validation results and the phone acceptance checklist are recorded in `ui-ux-redesign-validation.md`.

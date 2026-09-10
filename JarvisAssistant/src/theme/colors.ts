@@ -1,14 +1,16 @@
 export const Colors = {
-  background: '#0D0E12', // Deep onyx
-  card: '#1C1C1E',      // Dark gray glass
-  cardBorder: '#2C2C2E', // Subtle border
-  textPrimary: '#FFFFFF',
-  textSecondary: '#8E8E93',
-  accent: '#0A84FF',     // Bright blue
-  success: '#30D158',
-  warning: '#FF9F0A',
-  danger: '#FF453A',
-  orbIdle: '#0A84FF',
-  orbListening: '#FF9F0A',
-  orbSpeaking: '#32D74B',
+  background: '#F5F4F0',
+  card: '#FFFFFF',
+  cardBorder: '#E8E8E1',
+  textPrimary: '#222824',
+  textSecondary: '#636B65',
+  accent: '#176B61',
+  success: '#176B61',
+  warning: '#8B5E19',
+  danger: '#B34838',
+  coral: '#D65743',
+  mint: '#E4EFE8',
+  orbIdle: '#176B61',
+  orbListening: '#B77D28',
+  orbSpeaking: '#176B61',
 };

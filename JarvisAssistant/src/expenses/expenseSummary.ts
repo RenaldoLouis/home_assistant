@@ -1,3 +1,4 @@
+import { addDays, normalizeDate, startOfDay } from './dates';
 export interface SavedExpense {
   amount?: unknown;
   date?: unknown;
@@ -15,7 +16,6 @@ export interface ExpenseSummary {
 }
 
 const WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export function buildExpenseSummary(
   expenses: SavedExpense[],
@@ -24,7 +24,7 @@ export function buildExpenseSummary(
   const todayStart = startOfDay(now);
   const tomorrowStart = addDays(todayStart, 1);
   const weekStart = startOfWeek(todayStart);
-  const monthStart = addDays(todayStart, -30);
+  const monthStart = addDays(todayStart, -29);
   const weeklyTotals = new Array(WEEK_LABELS.length).fill(0);
 
   let today = 0;
@@ -33,7 +33,8 @@ export function buildExpenseSummary(
 
   for (const expense of expenses) {
     const amount = normalizeAmount(expense.amount);
-    const date = normalizeExpenseDate(expense.date) ?? normalizeExpenseDate(expense.createdAt);
+    const date =
+      normalizeDate(expense.date) ?? normalizeDate(expense.createdAt);
 
     if (amount <= 0 || !date) {
       continue;
@@ -77,41 +78,6 @@ function normalizeAmount(amount: unknown): number {
   return 0;
 }
 
-function normalizeExpenseDate(value: unknown): Date | null {
-  if (!value) {
-    return null;
-  }
-
-  if (value instanceof Date) {
-    return isValidDate(value) ? value : null;
-  }
-
-  if (typeof value === 'string' || typeof value === 'number') {
-    const date = new Date(value);
-    return isValidDate(date) ? date : null;
-  }
-
-  if (typeof value === 'object' && 'toDate' in value && typeof value.toDate === 'function') {
-    const date = value.toDate();
-    return date instanceof Date && isValidDate(date) ? date : null;
-  }
-
-  if (
-    typeof value === 'object' &&
-    'seconds' in value &&
-    typeof value.seconds === 'number'
-  ) {
-    const date = new Date(value.seconds * 1000);
-    return isValidDate(date) ? date : null;
-  }
-
-  return null;
-}
-
-function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
 function startOfWeek(date: Date): Date {
   const mondayFirstDay = getMondayFirstDayIndex(date);
   return addDays(startOfDay(date), -mondayFirstDay);
@@ -121,10 +87,38 @@ function getMondayFirstDayIndex(date: Date): number {
   return (date.getDay() + 6) % 7;
 }
 
-function addDays(date: Date, days: number): Date {
-  return new Date(date.getTime() + days * MS_PER_DAY);
-}
-
-function isValidDate(date: Date): boolean {
-  return !Number.isNaN(date.getTime());
+export function buildDayReport<T extends SavedExpense>(
+  expenses: T[],
+  selectedDate: Date,
+) {
+  const start = startOfDay(selectedDate);
+  const end = addDays(start, 1);
+  const weekStart = startOfWeek(start);
+  const week = WEEK_LABELS.map((label, index) => ({
+    label,
+    date: addDays(weekStart, index),
+    total: 0,
+  }));
+  const dated = expenses
+    .map(expense => ({
+      expense,
+      date: normalizeDate(expense.date) ?? normalizeDate(expense.createdAt),
+      amount: normalizeAmount(expense.amount),
+    }))
+    .filter(entry => entry.date !== null && entry.amount > 0);
+  for (const entry of dated) {
+    const day = week.find(
+      item => entry.date! >= item.date && entry.date! < addDays(item.date, 1),
+    );
+    if (day) day.total += entry.amount;
+  }
+  const selected = dated
+    .filter(entry => entry.date! >= start && entry.date! < end)
+    .sort((a, b) => b.date!.getTime() - a.date!.getTime());
+  return {
+    total: selected.reduce((total, entry) => total + entry.amount, 0),
+    expenses: selected.map(entry => entry.expense),
+    week,
+    weekTotal: week.reduce((total, day) => total + day.total, 0),
+  };
 }

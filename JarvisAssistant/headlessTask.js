@@ -1,54 +1,31 @@
 import 'react-native-get-random-values';
-import { getFirestore, collection, doc, setDoc, serverTimestamp } from '@react-native-firebase/firestore';
+import {
+  getFirestore,
+  collection,
+  doc,
+  setDoc,
+  serverTimestamp,
+} from '@react-native-firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
 import { JARVIS_USER_ID } from './src/expenses/constants';
 import { parseExpenseNotification } from './src/notifications/expenseNotificationParser';
 
 const headlessTask = async ({ notification }) => {
-  console.log('[Jarvis Headless] Task fired. Notification received:', notification ? 'yes' : 'no');
-  console.log('[Jarvis Headless] [DEBUG-NOTIF] Raw notification type:', typeof notification);
-
-  // Log the raw payload so we can see exactly what arrives
-  try {
-    const preview = typeof notification === 'string'
-      ? notification.slice(0, 500)
-      : JSON.stringify(notification, null, 2)?.slice(0, 500);
-    console.log('[Jarvis Headless] [DEBUG-NOTIF] Payload preview:', preview);
-  } catch (e) {
-    console.log('[Jarvis Headless] [DEBUG-NOTIF] Could not stringify payload:', e?.message);
-  }
-
-  // Extract and log key fields cleanly (handling both JSON string and object)
-  let parsedPayload = null;
-  if (typeof notification === 'string') {
-    try {
-      parsedPayload = JSON.parse(notification);
-    } catch (e) {
-      console.log('[Jarvis Headless] [DEBUG-NOTIF] Could not parse JSON string:', e?.message);
-    }
-  } else if (notification && typeof notification === 'object') {
-    parsedPayload = notification;
-  }
-
-  if (parsedPayload && typeof parsedPayload === 'object') {
-    console.log('[Jarvis Headless] [DEBUG-NOTIF] app:', parsedPayload.app);
-    console.log('[Jarvis Headless] [DEBUG-NOTIF] title:', parsedPayload.title || parsedPayload.titleBig);
-    console.log('[Jarvis Headless] [DEBUG-NOTIF] text:', parsedPayload.text);
-    console.log('[Jarvis Headless] [DEBUG-NOTIF] bigText:', parsedPayload.bigText);
-    console.log('[Jarvis Headless] [DEBUG-NOTIF] subText:', parsedPayload.subText);
-    console.log('[Jarvis Headless] [DEBUG-NOTIF] summaryText:', parsedPayload.summaryText);
-  }
-
   try {
     const expenseData = parseExpenseNotification(notification);
 
-    console.log('[Jarvis Headless] [DEBUG-NOTIF] Parse result:', expenseData ? JSON.stringify(expenseData) : 'null (rejected)');
-
     if (!expenseData) {
-      console.log('[Jarvis Headless] Notification did not contain a Financial Diary expense.');
+      console.log(
+        '[Jarvis Headless] Notification did not contain a Financial Diary expense.',
+      );
       return;
     }
 
+    // Android's listener exposes StatusBarNotification.getPostTime() as epoch milliseconds.
+    const postedAt = Number(expenseData.notificationTime);
+    const capturedAt = Date.now();
+    const validPostedAt =
+      Number.isSafeInteger(postedAt) && postedAt > 0 && postedAt <= capturedAt;
     const expenseId = uuidv4();
     const savedExpense = {
       id: expenseId,
@@ -56,7 +33,8 @@ const headlessTask = async ({ notification }) => {
       merchant: expenseData.merchant,
       category: expenseData.category,
       bank: expenseData.bank,
-      date: new Date().toISOString(),
+      date: new Date(validPostedAt ? postedAt : capturedAt).toISOString(),
+      dateSource: validPostedAt ? 'notification' : 'capture',
       sourceApp: expenseData.sourceApp,
       sourceTitle: expenseData.sourceTitle,
       createdAt: serverTimestamp(),
@@ -67,13 +45,19 @@ const headlessTask = async ({ notification }) => {
     }
 
     const db = getFirestore();
-    const expenseRef = doc(collection(db, 'users', JARVIS_USER_ID, 'expenses'), expenseId);
+    const expenseRef = doc(
+      collection(db, 'users', JARVIS_USER_ID, 'expenses'),
+      expenseId,
+    );
 
     await setDoc(expenseRef, savedExpense);
 
-    console.log('[Jarvis Headless] Saved Financial Diary expense:', expenseData.amount, 'as', expenseData.category);
+    console.log('[Jarvis Headless] Saved expense.');
   } catch (error) {
-    console.error('[Jarvis Headless] Error in notification listener headless task:', error);
+    console.error(
+      '[Jarvis Headless] Error in notification listener headless task:',
+      error,
+    );
   }
 };
 
