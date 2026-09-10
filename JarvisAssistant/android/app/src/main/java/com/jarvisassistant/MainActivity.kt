@@ -1,9 +1,12 @@
 package com.jarvisassistant
 
+import android.content.ComponentName
+import android.service.notification.NotificationListenerService
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
+import com.lesimoes.androidnotificationlistener.RNAndroidNotificationListener
 
 class MainActivity : ReactActivity() {
 
@@ -19,4 +22,15 @@ class MainActivity : ReactActivity() {
    */
   override fun createReactActivityDelegate(): ReactActivityDelegate =
       DefaultReactActivityDelegate(this, mainComponentName, fabricEnabled)
+
+  override fun onResume() {
+    super.onResume()
+    try {
+      NotificationListenerService.requestRebind(
+        ComponentName(this, RNAndroidNotificationListener::class.java)
+      )
+    } catch (e: Exception) {
+      android.util.Log.e("MainActivity", "Failed to requestRebind", e)
+    }
+  }
 }

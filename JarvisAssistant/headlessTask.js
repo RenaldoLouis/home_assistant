@@ -18,12 +18,25 @@ const headlessTask = async ({ notification }) => {
     console.log('[Jarvis Headless] [DEBUG-NOTIF] Could not stringify payload:', e?.message);
   }
 
-  // Log key fields individually
-  if (notification && typeof notification === 'object') {
-    console.log('[Jarvis Headless] [DEBUG-NOTIF] app:', notification.app);
-    console.log('[Jarvis Headless] [DEBUG-NOTIF] title:', notification.title);
-    console.log('[Jarvis Headless] [DEBUG-NOTIF] text:', notification.text);
-    console.log('[Jarvis Headless] [DEBUG-NOTIF] bigText:', notification.bigText);
+  // Extract and log key fields cleanly (handling both JSON string and object)
+  let parsedPayload = null;
+  if (typeof notification === 'string') {
+    try {
+      parsedPayload = JSON.parse(notification);
+    } catch (e) {
+      console.log('[Jarvis Headless] [DEBUG-NOTIF] Could not parse JSON string:', e?.message);
+    }
+  } else if (notification && typeof notification === 'object') {
+    parsedPayload = notification;
+  }
+
+  if (parsedPayload && typeof parsedPayload === 'object') {
+    console.log('[Jarvis Headless] [DEBUG-NOTIF] app:', parsedPayload.app);
+    console.log('[Jarvis Headless] [DEBUG-NOTIF] title:', parsedPayload.title || parsedPayload.titleBig);
+    console.log('[Jarvis Headless] [DEBUG-NOTIF] text:', parsedPayload.text);
+    console.log('[Jarvis Headless] [DEBUG-NOTIF] bigText:', parsedPayload.bigText);
+    console.log('[Jarvis Headless] [DEBUG-NOTIF] subText:', parsedPayload.subText);
+    console.log('[Jarvis Headless] [DEBUG-NOTIF] summaryText:', parsedPayload.summaryText);
   }
 
   try {

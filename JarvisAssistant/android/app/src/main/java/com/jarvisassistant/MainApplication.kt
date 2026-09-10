@@ -1,11 +1,14 @@
 package com.jarvisassistant
 
 import android.app.Application
+import android.content.ComponentName
+import android.service.notification.NotificationListenerService
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
+import com.lesimoes.androidnotificationlistener.RNAndroidNotificationListener
 
 class MainApplication : Application(), ReactApplication {
 
@@ -25,5 +28,12 @@ class MainApplication : Application(), ReactApplication {
   override fun onCreate() {
     super.onCreate()
     loadReactNative(this)
+    try {
+      NotificationListenerService.requestRebind(
+        ComponentName(this, RNAndroidNotificationListener::class.java)
+      )
+    } catch (e: Exception) {
+      android.util.Log.e("MainApplication", "Failed to requestRebind", e)
+    }
   }
 }

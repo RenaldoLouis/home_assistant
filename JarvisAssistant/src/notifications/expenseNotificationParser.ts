@@ -43,6 +43,7 @@ const TEXT_FIELD_ORDER = [
 const TARGET_TITLE_PATTERN = /\b(?:financial\s+diary|my\s+financial)\b/i;
 const KNOWN_BANK_APP_PATTERN = /\b(?:bca|mybca|mandiri|bni|bri)\b/i;
 const IDR_AMOUNT_PATTERN = /\b(?:IDR|Rp\.?)\s*([0-9][0-9.,]*)/i;
+const EARNING_PATTERN = /\b(?:rdn\s+earning|earning)\b/i;
 
 export function parseExpenseNotification(
   rawNotification: unknown,
@@ -58,6 +59,10 @@ export function parseExpenseNotification(
   const notificationText = resolveNotificationText(payload);
 
   if (!isFinancialDiaryCandidate(sourceApp, sourceTitle)) {
+    return null;
+  }
+
+  if (EARNING_PATTERN.test(notificationText)) {
     return null;
   }
 
