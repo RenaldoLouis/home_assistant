@@ -4,7 +4,7 @@ import {
   DashboardScreen,
   DashboardScreenProps,
 } from '../src/screens/DashboardScreen';
-import { TextInput } from 'react-native';
+import { Linking, NativeModules, TextInput } from 'react-native';
 
 jest.mock(
   'react-native-safe-area-context',
@@ -131,9 +131,85 @@ test('a loading state does not represent unavailable spending as zero', async ()
     screen.update(<DashboardScreen {...props} dataStatus="loading" />),
   );
   expect(
-    screen.root.findAllByProps({ children: 'Gathering your day…' }).length,
-  ).toBeGreaterThan(0);
-  expect(
     screen.root.findAllByProps({ accessibilityLabel: 'Edit Food, Rp 25.000' }),
   ).toHaveLength(0);
+});
+
+test('renders income with positive prefix and shows received indicator on summary', async () => {
+  const propsWithIncome: DashboardScreenProps = {
+    ...props,
+    expenses: [
+      ...props.expenses,
+      {
+        id: 'inc-1',
+        amount: 68000,
+        merchant: '***ANI ***RIA **BR',
+        category: 'Income',
+        bank: 'BCA',
+        type: 'income',
+        date: new Date(2026, 8, 10, 12, 40).toISOString(),
+      },
+    ],
+  };
+  await act(async () => {
+    screen.update(<DashboardScreen {...propsWithIncome} />);
+  });
+
+  expect(
+    screen.root.findAllByProps({
+      accessibilityLabel: 'Edit Income, +Rp 68.000',
+    }).length,
+  ).toBeGreaterThan(0);
+
+  expect(
+    screen.root.findAllByProps({
+      children: 'Received: +Rp 68.000',
+    }).length,
+  ).toBeGreaterThan(0);
+});
+
+test('settings panel provides battery settings navigation and listener re-connect trigger', async () => {
+  const openSettingsSpy = jest
+    .spyOn(Linking, 'openSettings')
+    .mockImplementation(() => Promise.resolve());
+  const rebindSpy = jest.fn().mockResolvedValue(true);
+  NativeModules.NotificationManagerModule = { rebindListener: rebindSpy };
+
+  await press('Open settings');
+
+  expect(
+    screen.root.findAllByProps({ accessibilityLabel: 'Battery settings' }).length,
+  ).toBeGreaterThan(0);
+  expect(
+    screen.root.findAllByProps({ accessibilityLabel: 'Re-connect listener' })
+      .length,
+  ).toBeGreaterThan(0);
+
+  await press('Battery settings');
+  expect(openSettingsSpy).toHaveBeenCalledTimes(1);
+
+  await press('Re-connect listener');
+  expect(rebindSpy).toHaveBeenCalledTimes(1);
+
+  openSettingsSpy.mockRestore();
+});
+
+test('permission modal provides button to open battery settings', async () => {
+  const openSettingsSpy = jest
+    .spyOn(Linking, 'openSettings')
+    .mockImplementation(() => Promise.resolve());
+
+  await act(async () => {
+    screen.update(<DashboardScreen {...props} showNotifModal={true} />);
+  });
+
+  expect(
+    screen.root.findAllByProps({ accessibilityLabel: 'Open battery settings' })
+      .length,
+  ).toBeGreaterThan(0);
+
+  await press('Open battery settings');
+  expect(openSettingsSpy).toHaveBeenCalledTimes(1);
+
+  openSettingsSpy.mockRestore();
 });

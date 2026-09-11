@@ -52,6 +52,42 @@ describe('expense summary', () => {
       0, 0, 0, 42500, 0, 250580, 0,
     ]);
   });
+
+  it('separates income from spending so income does not inflate spending total', () => {
+    const report = buildDayReport(
+      [
+        {
+          id: 'food',
+          amount: 376000,
+          type: 'expense',
+          date: new Date(2026, 8, 10, 12, 12).toISOString(),
+        },
+        {
+          id: 'transfer-1',
+          amount: 68000,
+          type: 'income',
+          date: new Date(2026, 8, 10, 12, 40).toISOString(),
+        },
+        {
+          id: 'transfer-2',
+          amount: 106000,
+          type: 'income',
+          date: new Date(2026, 8, 10, 12, 21).toISOString(),
+        },
+      ],
+      new Date(2026, 8, 10),
+    );
+
+    expect(report.total).toBe(376000);
+    expect(report.incomeTotal).toBe(174000);
+    expect(report.expenseCount).toBe(1);
+    expect(report.incomeCount).toBe(2);
+    expect(report.expenses.map(e => e.id)).toEqual([
+      'transfer-1',
+      'transfer-2',
+      'food',
+    ]);
+  });
 });
 
 it('keeps an entire local day through daylight-saving transitions', () => {

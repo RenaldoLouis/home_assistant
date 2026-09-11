@@ -116,6 +116,7 @@ test('saves amount and category corrections to the existing document', async () 
   const latestProps = latestCall[0];
 
   expect(latestProps.categoryOptions).toContain('Dating');
+  expect(latestProps.categoryOptions).toContain('Income');
 
   await latestProps.onExpenseSave('expense-id-1', {
     amount: 18000,
@@ -127,6 +128,7 @@ test('saves amount and category corrections to the existing document', async () 
     category: 'Dating',
     amount: 18000,
     date: '2026-09-10T05:00:00.000Z',
+    type: 'expense',
     originalAmount: 25000,
     originalCategory: 'Food',
     updatedAt: 'SERVER_TIMESTAMP',

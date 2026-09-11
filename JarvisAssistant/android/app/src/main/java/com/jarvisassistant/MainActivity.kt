@@ -25,12 +25,6 @@ class MainActivity : ReactActivity() {
 
   override fun onResume() {
     super.onResume()
-    try {
-      NotificationListenerService.requestRebind(
-        ComponentName(this, RNAndroidNotificationListener::class.java)
-      )
-    } catch (e: Exception) {
-      android.util.Log.e("MainActivity", "Failed to requestRebind", e)
-    }
+    NotificationHelper.rebindListener(this)
   }
 }

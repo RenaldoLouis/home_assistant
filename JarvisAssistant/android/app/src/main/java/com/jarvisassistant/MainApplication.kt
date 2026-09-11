@@ -17,10 +17,10 @@ class MainApplication : Application(), ReactApplication {
       context = applicationContext,
       packageList =
         PackageList(this).packages.apply {
-          // Packages that cannot be autolinked yet can be added manually here, for example:
           add(SpeechRecognizerPackage())
           add(TtsPackage())
           add(LiveAudioPackage())
+          add(NotificationManagerPackage())
         },
     )
   }
@@ -28,12 +28,6 @@ class MainApplication : Application(), ReactApplication {
   override fun onCreate() {
     super.onCreate()
     loadReactNative(this)
-    try {
-      NotificationListenerService.requestRebind(
-        ComponentName(this, RNAndroidNotificationListener::class.java)
-      )
-    } catch (e: Exception) {
-      android.util.Log.e("MainApplication", "Failed to requestRebind", e)
-    }
+    NotificationHelper.rebindListener(this)
   }
 }

@@ -86,6 +86,29 @@ describe('notification expense headless task', () => {
       }),
     );
   });
+
+  it('saves an income notification with type income and sender merchant', async () => {
+    await headlessTask({
+      notification: {
+        app: 'id.co.bca.mybca',
+        title: 'Financial Diary',
+        text: 'You received IDR 68,000.00 from ***ANI ***RIA **BR at Account Transfer ...',
+        time: '1796469600002',
+      },
+    });
+
+    expect(setDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        id: 'expense-id-1',
+        amount: 68000,
+        merchant: '***ANI ***RIA **BR',
+        category: 'Income',
+        type: 'income',
+        bank: 'BCA',
+      }),
+    );
+  });
 });
 
 it('uses notification posting time when a delayed expense is processed after midnight', async () => {

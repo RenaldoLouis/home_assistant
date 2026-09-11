@@ -17,6 +17,7 @@ export function buildExpenseUpdate(
     amount: edit.amount,
     category,
     date: date.toISOString(),
+    type: edit.type ?? expense.type ?? 'expense',
     originalAmount: expense.originalAmount ?? expense.amount,
     originalCategory: expense.originalCategory ?? expense.category,
   };

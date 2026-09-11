@@ -51,15 +51,25 @@ international formatting examples:
 If Android leaves `text` empty, the parser checks richer fields such as `bigText` and grouped
 messages before giving up.
 
-## Category Rule
+## Transaction Type and Category Rules
 
-For Financial Diary/myBCA spending alerts, the text after `at` or `di` is saved as both the initial
-category and merchant label. For example, `You spent IDR 250,580.00 at Food & Beverage.` is saved with
-`category: "Food & Beverage"`.
+The parser classifies notifications as either an **expense** or **income**:
 
-The dashboard always includes the default category `Dating`, merges it with categories already seen
-in saved expenses, and lets the user update an expense category at the end of the day. Unknown or
-blank categories are normalized to `Uncategorized`.
+- **Expense Notifications (`You spent...` / `Anda mengeluarkan...`)**:
+  - Example: `You spent IDR 376,000.00 at Food & Beverage.`
+  - The text after `at` or `di` is saved as the category (e.g. `Food & Beverage`).
+  - Saved with `type: "expense"`, `category: "Food & Beverage"`, and `merchant: "Food & Beverage"`.
+  - Increments daily and weekly spending totals.
+
+- **Income Notifications (`You received...` / `Anda menerima...`)**:
+  - Example: `You received IDR 68,000.00 from ***ANI ***RIA **BR at Account Transfer ...`
+  - The sender is extracted from between `from`/`dari` and `at`/`di` (e.g. `***ANI ***RIA **BR`).
+  - Saved with `type: "income"`, `category: "Income"`, and `merchant: sender || channel || "Income"`.
+  - Rendered with positive prefix `+Rp ...` and emerald styling.
+  - Displayed in a summary indicator (`Received: +Rp ...`) and reported in spoken daily voice recaps without inflating spending totals.
+
+The dashboard always includes the default categories `Income` and `Dating`, merges them with categories already seen
+in saved transactions, and lets the user update categories at any time. Unknown or blank categories are normalized to `Uncategorized`. Existing documents without a `type` field default to `"expense"`.
 
 ## Date Rule
 

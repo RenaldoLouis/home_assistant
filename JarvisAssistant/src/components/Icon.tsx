@@ -17,7 +17,8 @@ type IconName =
   | 'wallet'
   | 'lamp'
   | 'speaker'
-  | 'check';
+  | 'check'
+  | 'refresh';
 const paths: Partial<Record<IconName, string>> = {
   spark: 'M12 2l2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5Z',
   home: 'M3 10l9-7 9 7v10H15v-6H9v6H3Z',
@@ -32,6 +33,7 @@ const paths: Partial<Record<IconName, string>> = {
   wallet: 'M20 8V4H4a2 2 0 000 4h17v12H4a2 2 0 01-2-2V6m19 6h-5v4h5',
   lamp: 'M8 15c0-3-3-3-3-7a7 7 0 0114 0c0 4-3 4-3 7H8Zm1 4h6m-5 3h4',
   check: 'M5 12l4 4L19 6',
+  refresh: 'M21 12a9 9 0 11-9-9c2.52 0 4.8 1.03 6.44 2.7L21 8M21 3v5h-5',
 };
 export function Icon({
   name,
@@ -90,6 +92,8 @@ export function categoryAppearance(category: string): {
   color: string;
   background: string;
 } {
+  if (/income|received|transfer\s*in/i.test(category))
+    return { icon: 'wallet', color: '#1B8755', background: '#E8F6EE' };
   if (/food|drink|meal|beverage|coffee/i.test(category))
     return { icon: 'food', color: '#196B65', background: '#E1F0EA' };
   if (/dating|love/i.test(category))

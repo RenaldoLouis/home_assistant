@@ -302,13 +302,13 @@ Before committing any code:
 <claude-mem-context>
 # Memory Context
 
-# [Home Assistant] recent context, 2026-09-10 11:53am GMT+7
+# [Home Assistant] recent context, 2026-09-10 5:48pm GMT+7
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 15 obs (4,280t read) | 201,922t work | 98% savings
+Stats: 23 obs (6,319t read) | 364,986t work | 98% savings
 
 ### Sep 5, 2026
 2573 10:09a 🟣 Expense Category Management System
@@ -328,6 +328,14 @@ Stats: 15 obs (4,280t read) | 201,922t work | 98% savings
 ### Sep 10, 2026
 2749 11:38a ⚖️ Daily Dashboard Redesign Specification and Data Requirements
 2750 " 🔵 Hardware Control Handlers Are Non-Functional Stubs
+2756 11:53a 🟣 Failed save persistence with retry mechanism
+2757 " 🟣 Historical week date range labeling in dashboard
+2758 " 🟣 Touch target size compliance enforcement (48dp minimum)
+2759 " 🔄 DashboardScreen styles extracted to dedicated stylesheet module
+2760 " 🔵 Android notification timestamp now used for expense dating
+2761 " ✅ Improved error boundary messaging in App component
+2762 " ✅ Test suite fixes and typescript type corrections
+2763 " ✅ Android release APK build prepared with Gradle
 
-Access 202k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 365k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

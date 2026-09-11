@@ -33,6 +33,7 @@ const headlessTask = async ({ notification }) => {
       merchant: expenseData.merchant,
       category: expenseData.category,
       bank: expenseData.bank,
+      type: expenseData.type || 'expense',
       date: new Date(validPostedAt ? postedAt : capturedAt).toISOString(),
       dateSource: validPostedAt ? 'notification' : 'capture',
       sourceApp: expenseData.sourceApp,

@@ -36,7 +36,11 @@ import {
   buildExpenseCategoryOptions,
   normalizeExpenseCategory,
 } from './src/expenses/categories';
-import { EditableExpense, ExpenseEdit } from './src/expenses/types';
+import {
+  EditableExpense,
+  ExpenseEdit,
+  TransactionType,
+} from './src/expenses/types';
 import {
   GeminiLiveService,
   LiveSessionStatus,
@@ -113,11 +117,17 @@ export default function App() {
           dataStatus === 'cached' || dataStatus === 'pending'
             ? 'From the records currently on this phone: '
             : '';
+        const incomePart =
+          report.incomeTotal > 0
+            ? `, and received IDR ${report.incomeTotal.toLocaleString(
+                'id-ID',
+              )} in income`
+            : '';
         return `${prefix}For ${dayKey(
           date,
         )}, you have recorded IDR ${report.total.toLocaleString(
           'id-ID',
-        )} across ${report.expenses.length} expenses.`;
+        )} across ${report.expenseCount} expenses${incomePart}.`;
       },
       onPlayMusic: async () => ({
         success: false,
@@ -402,6 +412,8 @@ function toEditableExpense(
     return null;
   }
 
+  const type: TransactionType = data.type === 'income' ? 'income' : 'expense';
+
   return {
     id: expenseId,
     amount,
@@ -409,6 +421,7 @@ function toEditableExpense(
     category: normalizeExpenseCategory(data.category),
     bank: normalizeString(data.bank) || 'Unknown',
     date: date.toISOString(),
+    type,
     ...(typeof data.originalAmount === 'number'
       ? { originalAmount: data.originalAmount }
       : {}),

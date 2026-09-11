@@ -41,4 +41,71 @@ describe('expense notification parser', () => {
       }),
     ).toBeNull();
   });
+
+  it('parses received notifications as income with sender and category Income', () => {
+    expect(
+      parseExpenseNotification({
+        app: 'id.co.bca.mybca',
+        title: 'Financial Diary',
+        text: 'You received IDR 68,000.00 from ***ANI ***RIA **BR at Account Transfer ...',
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        amount: 68000,
+        category: 'Income',
+        merchant: '***ANI ***RIA **BR',
+        type: 'income',
+        bank: 'BCA',
+      }),
+    );
+  });
+
+  it('parses all real received notification variations from myBCA', () => {
+    expect(
+      parseExpenseNotification({
+        app: 'com.bca.mybca.omni.android',
+        title: 'Financial Diary',
+        text: 'You received IDR 106,000.00 from ****ARA RAMA***NI at Account Transfer...',
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        amount: 106000,
+        category: 'Income',
+        merchant: '****ARA RAMA***NI',
+        type: 'income',
+      }),
+    );
+
+    expect(
+      parseExpenseNotification({
+        app: 'com.bca.mybca.omni.android',
+        title: 'Financial Diary',
+        text: 'You received IDR 53,000.00 from **NDA ***ANA **AIR at Account Transfe...',
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        amount: 53000,
+        category: 'Income',
+        merchant: '**NDA ***ANA **AIR',
+        type: 'income',
+      }),
+    );
+  });
+
+  it('parses spending notifications explicitly with type expense', () => {
+    expect(
+      parseExpenseNotification({
+        app: 'id.co.bca.mybca',
+        title: 'Financial Diary',
+        text: 'You spent IDR 376,000.00 at Food & Beverage.',
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        amount: 376000,
+        category: 'Food & Beverage',
+        merchant: 'Food & Beverage',
+        type: 'expense',
+      }),
+    );
+  });
 });

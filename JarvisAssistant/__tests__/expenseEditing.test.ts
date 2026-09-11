@@ -20,6 +20,7 @@ test('corrects the existing expense while preserving the captured amount and cat
     amount: 18000,
     category: 'Dating',
     date: expense.date,
+    type: 'expense',
     originalAmount: 25000,
     originalCategory: 'Food',
   });
@@ -34,6 +35,15 @@ test('corrects the existing expense while preserving the captured amount and cat
       { amount: 19000, category: 'Travel', date: expense.date },
     ),
   ).toMatchObject({ originalAmount: 25000, originalCategory: 'Food' });
+  expect(
+    buildExpenseUpdate(
+      {
+        ...expense,
+        type: 'income',
+      },
+      { amount: 30000, category: 'Income', date: expense.date },
+    ),
+  ).toMatchObject({ type: 'income' });
 });
 
 test.each([0, -1, NaN, Infinity, 1.5, Number.MAX_SAFE_INTEGER + 1])(

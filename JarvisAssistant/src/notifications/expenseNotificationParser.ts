@@ -2,6 +2,7 @@ import {
   UNCATEGORIZED_EXPENSE_CATEGORY,
   normalizeExpenseCategory,
 } from '../expenses/categories';
+import { TransactionType } from '../expenses/types';
 
 interface NotificationPayload {
   [key: string]: unknown;
@@ -22,6 +23,7 @@ export interface ParsedExpenseNotification {
   merchant: string;
   category: string;
   bank: string;
+  type: TransactionType;
   notificationTime?: string;
   sourceApp: string;
   sourceTitle: string;
@@ -44,6 +46,7 @@ const TARGET_TITLE_PATTERN = /\b(?:financial\s+diary|my\s+financial)\b/i;
 const KNOWN_BANK_APP_PATTERN = /\b(?:bca|mybca|mandiri|bni|bri)\b/i;
 const IDR_AMOUNT_PATTERN = /\b(?:IDR|Rp\.?)\s*([0-9][0-9.,]*)/i;
 const EARNING_PATTERN = /\b(?:rdn\s+earning|earning)\b/i;
+const INCOME_PATTERN = /\b(?:you\s+received|anda\s+menerima|received|menerima)\b/i;
 
 export function parseExpenseNotification(
   rawNotification: unknown,
@@ -72,6 +75,28 @@ export function parseExpenseNotification(
     return null;
   }
 
+  const isIncome = INCOME_PATTERN.test(notificationText);
+  const type: TransactionType = isIncome ? 'income' : 'expense';
+
+  if (isIncome) {
+    const sender = extractSender(notificationText);
+    const channel = extractCategory(notificationText);
+    const merchant =
+      sender ||
+      (channel !== UNCATEGORIZED_EXPENSE_CATEGORY ? channel : 'Unknown');
+
+    return {
+      amount,
+      merchant,
+      category: 'Income',
+      bank: inferBank(sourceApp, sourceTitle),
+      type,
+      notificationTime: toText(payload.time) || undefined,
+      sourceApp,
+      sourceTitle,
+    };
+  }
+
   const category = extractCategory(notificationText);
 
   return {
@@ -79,6 +104,7 @@ export function parseExpenseNotification(
     merchant: category === UNCATEGORIZED_EXPENSE_CATEGORY ? 'Unknown' : category,
     category,
     bank: inferBank(sourceApp, sourceTitle),
+    type,
     notificationTime: toText(payload.time) || undefined,
     sourceApp,
     sourceTitle,
@@ -224,6 +250,12 @@ function inferBank(sourceApp: string, sourceTitle: string): string {
   }
 
   return 'Unknown';
+}
+
+function extractSender(text: string): string | null {
+  const match = text.match(/\b(?:from|dari)\s+(.+?)(?:\s+(?:at|di)\b|[.!?]|$)/i);
+  const sender = match?.[1]?.trim().replace(/[.,;:]+$/, '');
+  return sender || null;
 }
 
 function extractCategory(text: string): string {

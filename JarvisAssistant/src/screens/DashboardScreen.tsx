@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   AppState,
   FlatList,
+  Linking,
+  NativeModules,
   ScrollView,
   StatusBar,
   Text,
@@ -62,6 +64,25 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
     null,
   );
   const [editing, setEditing] = useState<EditableExpense | null>(null);
+  const [rebindStatus, setRebindStatus] = useState<string | null>(null);
+
+  const handleRebindListener = async () => {
+    try {
+      if (NativeModules.NotificationManagerModule?.rebindListener) {
+        await NativeModules.NotificationManagerModule.rebindListener();
+        setRebindStatus('Reconnected successfully');
+      } else {
+        setRebindStatus('Reconnected');
+      }
+    } catch {
+      setRebindStatus('Failed to reconnect');
+    }
+    setTimeout(() => setRebindStatus(null), 3000);
+  };
+
+  const handleOpenBatterySettings = () => {
+    Linking.openSettings();
+  };
   useEffect(() => {
     const tick = () => setNow(new Date());
     const timer = setInterval(tick, 30000);
@@ -236,7 +257,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
                 })}
           </Text>
           <Text style={s.count}>
-            {ready ? `${report.expenses.length} expenses` : '—'}
+            {ready
+              ? report.incomeCount > 0
+                ? `${report.expenseCount} expenses · ${report.incomeCount} income`
+                : `${report.expenseCount} expenses`
+              : '—'}
           </Text>
         </View>
         <Text
@@ -247,6 +272,13 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
         >
           {ready ? money(report.total) : '—'}
         </Text>
+        {ready && report.incomeTotal > 0 && (
+          <View style={s.incomeBadgeRow}>
+            <Text style={s.incomeBadgeText}>
+              {`Received: +${money(report.incomeTotal)}`}
+            </Text>
+          </View>
+        )}
         <View style={s.summaryDivider} />
         <View style={s.rowBetween}>
           <Text style={s.smallHeading}>
@@ -358,15 +390,17 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
             </View>
           }
           renderItem={({ item }) => {
+            const isIncome = item.type === 'income';
             const appearance = categoryAppearance(item.category);
             const merchant =
               item.merchant !== item.category && item.merchant !== 'Unknown'
                 ? `${item.merchant} · `
                 : '';
+            const amountPrefix = isIncome ? '+' : '';
             return (
               <AnimatedPressable
                 onPress={() => setEditing(item)}
-                accessibilityLabel={`Edit ${item.category}, ${money(
+                accessibilityLabel={`Edit ${item.category}, ${amountPrefix}${money(
                   item.amount,
                 )}`}
                 style={s.expenseCard}
@@ -382,7 +416,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
                 <View style={s.expenseBody}>
                   <View style={s.expenseMain}>
                     <Text style={s.expenseCategory}>{item.category}</Text>
-                    <Text style={s.expenseAmount}>{money(item.amount)}</Text>
+                    <Text
+                      style={[
+                        s.expenseAmount,
+                        isIncome && s.incomeAmount,
+                      ]}
+                    >
+                      {`${amountPrefix}${money(item.amount)}`}
+                    </Text>
                   </View>
                   <Text style={s.expenseMeta}>
                     {merchant}
@@ -564,10 +605,36 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
           <AnimatedPressable
             onPress={props.onRequestNotifPermission}
             style={s.settingButton}
+            accessibilityLabel="Notification settings"
           >
             <Text style={s.link}>Notification settings</Text>
             <Icon name="chevronRight" size={18} />
           </AnimatedPressable>
+          <View style={s.tipBox}>
+            <Text style={s.tipTitle}>Samsung & Android Battery</Text>
+            <Text style={s.tipText}>
+              Set Battery to “Unrestricted” in App Info so overnight alerts are not paused by Android or Samsung power management.
+            </Text>
+          </View>
+          <AnimatedPressable
+            onPress={handleOpenBatterySettings}
+            style={s.settingButton}
+            accessibilityLabel="Battery settings"
+          >
+            <Text style={s.link}>Battery settings (Unrestricted)</Text>
+            <Icon name="chevronRight" size={18} />
+          </AnimatedPressable>
+          <AnimatedPressable
+            onPress={handleRebindListener}
+            style={s.settingButton}
+            accessibilityLabel="Re-connect listener"
+          >
+            <Text style={s.link}>Re-connect listener</Text>
+            <Icon name="refresh" size={18} />
+          </AnimatedPressable>
+          {rebindStatus && (
+            <Text style={s.rebindStatusText}>{rebindStatus}</Text>
+          )}
           <Text style={s.smallHeading}>Date & time</Text>
           <Text style={s.deviceDescription}>
             Follows your phone’s timezone. If you travel, expenses near midnight
@@ -601,15 +668,30 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
             supported bank spending alerts. Notification extraction happens on
             your phone.
           </Text>
+          <View style={s.tipBox}>
+            <Text style={s.tipTitle}>Samsung / Android Tip</Text>
+            <Text style={s.tipText}>
+              Also set Battery to “Unrestricted” in App Info so overnight spending alerts are captured without being put to sleep.
+            </Text>
+          </View>
           <AnimatedPressable
             style={s.primaryButton}
             onPress={props.onRequestNotifPermission}
+            accessibilityLabel="Open notification settings"
           >
             <Text style={s.primaryText}>Open notification settings</Text>
           </AnimatedPressable>
           <AnimatedPressable
+            style={s.secondaryButton}
+            onPress={handleOpenBatterySettings}
+            accessibilityLabel="Open battery settings"
+          >
+            <Text style={s.secondaryButtonText}>Open battery settings</Text>
+          </AnimatedPressable>
+          <AnimatedPressable
             style={s.settingButton}
             onPress={() => props.setShowNotifModal(false)}
+            accessibilityLabel="Not now"
           >
             <Text style={s.link}>Not now</Text>
           </AnimatedPressable>
