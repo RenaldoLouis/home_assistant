@@ -80,6 +80,7 @@ describe('expense summary', () => {
 
     expect(report.total).toBe(376000);
     expect(report.incomeTotal).toBe(174000);
+    expect(report.netSpend).toBe(202000); // 376000 spend - 174000 earn
     expect(report.expenseCount).toBe(1);
     expect(report.incomeCount).toBe(2);
     expect(report.expenses.map(e => e.id)).toEqual([
@@ -87,6 +88,70 @@ describe('expense summary', () => {
       'transfer-2',
       'food',
     ]);
+  });
+
+  it('calculates weekly actual spend (weekNetSpend and weekIncomeTotal) including days where income exceeds expenses', () => {
+    const report = buildDayReport(
+      [
+        {
+          id: 'mon-spend',
+          amount: 50000,
+          type: 'expense',
+          date: new Date(2026, 8, 7, 10).toISOString(),
+        },
+        {
+          id: 'tue-earn',
+          amount: 200000,
+          type: 'income',
+          date: new Date(2026, 8, 8, 10).toISOString(),
+        },
+        {
+          id: 'wed-spend',
+          amount: 80000,
+          type: 'expense',
+          date: new Date(2026, 8, 9, 10).toISOString(),
+        },
+        {
+          id: 'wed-earn',
+          amount: 30000,
+          type: 'income',
+          date: new Date(2026, 8, 9, 15).toISOString(),
+        },
+      ],
+      new Date(2026, 8, 8, 12),
+    );
+
+    // Tuesday alone: 0 spend - 200000 earn = -200000
+    expect(report.total).toBe(0);
+    expect(report.incomeTotal).toBe(200000);
+    expect(report.netSpend).toBe(-200000);
+
+    // Week recap:
+    // Total expenses: 50000 + 80000 = 130000
+    // Total income: 200000 + 30000 = 230000
+    // Week actual spend: 130000 - 230000 = -100000
+    expect(report.weekTotal).toBe(130000);
+    expect(report.weekIncomeTotal).toBe(230000);
+    expect(report.weekNetSpend).toBe(-100000);
+
+    // Per day in week:
+    // Mon: total 50000, income 0, netSpend 50000
+    // Tue: total 0, income 200000, netSpend -200000
+    // Wed: total 80000, income 30000, netSpend 50000
+    const mon = report.week[0];
+    const tue = report.week[1];
+    const wed = report.week[2];
+    expect(mon.total).toBe(50000);
+    expect(mon.income).toBe(0);
+    expect(mon.netSpend).toBe(50000);
+
+    expect(tue.total).toBe(0);
+    expect(tue.income).toBe(200000);
+    expect(tue.netSpend).toBe(-200000);
+
+    expect(wed.total).toBe(80000);
+    expect(wed.income).toBe(30000);
+    expect(wed.netSpend).toBe(50000);
   });
 });
 

@@ -4,6 +4,28 @@ export interface SavedExpense {
   date?: unknown;
   createdAt?: unknown;
   type?: unknown;
+  note?: unknown;
+}
+
+export interface DayWeekItem {
+  label: string;
+  date: Date;
+  total: number;
+  income: number;
+  netSpend: number;
+}
+
+export interface DayReport<T = SavedExpense> {
+  total: number;
+  incomeTotal: number;
+  netSpend: number;
+  expenseCount: number;
+  incomeCount: number;
+  expenses: T[];
+  week: DayWeekItem[];
+  weekTotal: number;
+  weekIncomeTotal: number;
+  weekNetSpend: number;
 }
 
 export interface ExpenseSummary {
@@ -102,14 +124,16 @@ function getMondayFirstDayIndex(date: Date): number {
 export function buildDayReport<T extends SavedExpense>(
   expenses: T[],
   selectedDate: Date,
-) {
+): DayReport<T> {
   const start = startOfDay(selectedDate);
   const end = addDays(start, 1);
   const weekStart = startOfWeek(start);
-  const week = WEEK_LABELS.map((label, index) => ({
+  const week: DayWeekItem[] = WEEK_LABELS.map((label, index) => ({
     label,
     date: addDays(weekStart, index),
     total: 0,
+    income: 0,
+    netSpend: 0,
   }));
   const dated = expenses
     .map(expense => ({
@@ -121,11 +145,16 @@ export function buildDayReport<T extends SavedExpense>(
     .filter(entry => entry.date !== null && entry.amount > 0);
 
   for (const entry of dated) {
-    if (!entry.isIncome) {
-      const day = week.find(
-        item => entry.date! >= item.date && entry.date! < addDays(item.date, 1),
-      );
-      if (day) day.total += entry.amount;
+    const day = week.find(
+      item => entry.date! >= item.date && entry.date! < addDays(item.date, 1),
+    );
+    if (day) {
+      if (entry.isIncome) {
+        day.income += entry.amount;
+      } else {
+        day.total += entry.amount;
+      }
+      day.netSpend = day.total - day.income;
     }
   }
 
@@ -136,13 +165,22 @@ export function buildDayReport<T extends SavedExpense>(
   const expensesOnly = selected.filter(entry => !entry.isIncome);
   const incomeOnly = selected.filter(entry => entry.isIncome);
 
+  const total = expensesOnly.reduce((sum, entry) => sum + entry.amount, 0);
+  const incomeTotal = incomeOnly.reduce((sum, entry) => sum + entry.amount, 0);
+  const weekTotal = week.reduce((sum, day) => sum + day.total, 0);
+  const weekIncomeTotal = week.reduce((sum, day) => sum + day.income, 0);
+
   return {
-    total: expensesOnly.reduce((total, entry) => total + entry.amount, 0),
-    incomeTotal: incomeOnly.reduce((total, entry) => total + entry.amount, 0),
+    total,
+    incomeTotal,
+    netSpend: total - incomeTotal,
     expenseCount: expensesOnly.length,
     incomeCount: incomeOnly.length,
     expenses: selected.map(entry => entry.expense),
     week,
-    weekTotal: week.reduce((total, day) => total + day.total, 0),
+    weekTotal,
+    weekIncomeTotal,
+    weekNetSpend: weekTotal - weekIncomeTotal,
   };
 }
+

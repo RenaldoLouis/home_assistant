@@ -122,7 +122,6 @@ export const dashboardStyles = StyleSheet.create({
   incomeBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 14,
     backgroundColor: '#E8F6EE',
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
@@ -135,9 +134,52 @@ export const dashboardStyles = StyleSheet.create({
     color: '#1B8755',
     fontVariant: ['tabular-nums'],
   },
+  netSummaryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  actualSpendBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  actualSpendBadgeDeficit: {
+    backgroundColor: '#F3F4ED',
+  },
+  actualSpendBadgeSurplus: {
+    backgroundColor: '#E8F6EE',
+  },
+  actualSpendText: {
+    fontSize: 13,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+  },
+  actualSpendTextDeficit: {
+    color: Colors.textPrimary,
+  },
+  actualSpendTextSurplus: {
+    color: '#1B8755',
+  },
   summaryDivider: { height: 1, backgroundColor: '#F0F0EB', marginBottom: 14 },
   smallHeading: { fontSize: 14, color: Colors.textPrimary, fontWeight: '600' },
+  weekRight: { alignItems: 'flex-end' },
+  weekActualLabel: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    marginBottom: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    fontWeight: '600',
+  },
+  weekBreakdown: { fontSize: 11, color: Colors.textSecondary, marginTop: 2 },
   weekTotal: { fontSize: 13, color: Colors.accent, fontWeight: '600' },
+  weekTotalSurplus: { color: '#1B8755' },
+
   chart: { flexGrow: 1, justifyContent: 'space-between', paddingTop: 12 },
   barColumn: { minWidth: 48, flex: 1, alignItems: 'center' },
   barValue: { fontSize: 9, color: Colors.textSecondary, marginBottom: 5 },
@@ -203,6 +245,18 @@ export const dashboardStyles = StyleSheet.create({
     color: '#1B8755',
   },
   expenseMeta: { fontSize: 11, lineHeight: 16, color: Colors.textSecondary },
+  expenseNote: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: Colors.textPrimary,
+    backgroundColor: '#F3F4ED',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 2,
+  },
+
   notice: {
     padding: 12,
     backgroundColor: '#EFEFE7',

@@ -8,6 +8,7 @@ export interface EditableExpense {
   bank: string;
   date: string;
   type?: TransactionType;
+  note?: string;
   originalAmount?: number;
   originalCategory?: string;
 }
@@ -17,4 +18,6 @@ export interface ExpenseEdit {
   category: string;
   date: string;
   type?: TransactionType;
+  note?: string;
 }
+

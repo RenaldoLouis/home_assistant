@@ -273,28 +273,84 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
           {ready ? money(report.total) : '—'}
         </Text>
         {ready && report.incomeTotal > 0 && (
-          <View style={s.incomeBadgeRow}>
-            <Text style={s.incomeBadgeText}>
-              {`Received: +${money(report.incomeTotal)}`}
-            </Text>
+          <View style={s.netSummaryRow}>
+            <View style={s.incomeBadgeRow}>
+              <Text style={s.incomeBadgeText}>
+                {`Received: +${money(report.incomeTotal)}`}
+              </Text>
+            </View>
+            <View
+              style={[
+                s.actualSpendBadge,
+                report.netSpend < 0
+                  ? s.actualSpendBadgeSurplus
+                  : s.actualSpendBadgeDeficit,
+              ]}
+            >
+              <Text
+                style={[
+                  s.actualSpendText,
+                  report.netSpend < 0
+                    ? s.actualSpendTextSurplus
+                    : s.actualSpendTextDeficit,
+                ]}
+              >
+                {report.netSpend < 0
+                  ? `Net saved: +${money(Math.abs(report.netSpend))}`
+                  : `Actual spend: ${money(report.netSpend)}`}
+              </Text>
+            </View>
           </View>
         )}
         <View style={s.summaryDivider} />
         <View style={s.rowBetween}>
-          <Text style={s.smallHeading}>
-            {dayKey(report.week[0].date) ===
-            dayKey(addDays(now, -((now.getDay() + 6) % 7)))
-              ? 'This week'
-              : `Week of ${report.week[0].date.toLocaleDateString('en-GB', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric',
-                })}`}
-          </Text>
-          <Text style={s.weekTotal}>
-            {ready ? money(report.weekTotal) : '—'}
-          </Text>
+          <View>
+            <Text style={s.smallHeading}>
+              {dayKey(report.week[0].date) ===
+              dayKey(addDays(now, -((now.getDay() + 6) % 7)))
+                ? 'This week'
+                : `Week of ${report.week[0].date.toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}`}
+            </Text>
+            {ready && report.weekIncomeTotal > 0 && (
+              <Text style={s.weekBreakdown}>
+                {`${money(report.weekTotal)} spent · +${money(
+                  report.weekIncomeTotal,
+                )} earned`}
+              </Text>
+            )}
+          </View>
+          <View
+            style={
+              ready && report.weekIncomeTotal > 0 ? s.weekRight : undefined
+            }
+          >
+            {ready && report.weekIncomeTotal > 0 && (
+              <Text style={s.weekActualLabel}>Actual spend</Text>
+            )}
+            <Text
+              style={[
+                s.weekTotal,
+                ready &&
+                  report.weekIncomeTotal > 0 &&
+                  report.weekNetSpend < 0 &&
+                  s.weekTotalSurplus,
+              ]}
+            >
+              {ready
+                ? report.weekIncomeTotal > 0
+                  ? report.weekNetSpend < 0
+                    ? `-${money(Math.abs(report.weekNetSpend))}`
+                    : money(report.weekNetSpend)
+                  : money(report.weekTotal)
+                : '—'}
+            </Text>
+          </View>
         </View>
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -402,7 +458,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
                 onPress={() => setEditing(item)}
                 accessibilityLabel={`Edit ${item.category}, ${amountPrefix}${money(
                   item.amount,
-                )}`}
+                )}${item.note ? `, note: ${item.note}` : ''}`}
                 style={s.expenseCard}
               >
                 <View
@@ -433,9 +489,15 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
                       minute: '2-digit',
                     })}
                   </Text>
+                  {!!item.note && (
+                    <Text style={s.expenseNote} numberOfLines={2}>
+                      {item.note}
+                    </Text>
+                  )}
                 </View>
                 <Icon name="chevronRight" size={14} color="#8B938B" />
               </AnimatedPressable>
+
             );
           }}
           ListFooterComponent={

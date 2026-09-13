@@ -21,6 +21,7 @@ export function ExpenseEditor({
   const [amount, setAmount] = useState(String(expense.amount));
   const [category, setCategory] = useState(expense.category);
   const [date, setDate] = useState(new Date(expense.date));
+  const [note, setNote] = useState(expense.note || '');
   const [showCalendar, setShowCalendar] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -38,7 +39,9 @@ export function ExpenseEditor({
       amount: /^\d+$/.test(amount.trim()) ? Number(amount) : NaN,
       category,
       date: date.toISOString(),
+      note: note.trim(),
     };
+
     try {
       buildExpenseUpdate(expense, edit);
       inFlight.current = true;
@@ -125,6 +128,19 @@ export function ExpenseEditor({
           }}
         />
       )}
+      <Text style={styles.label}>Note (optional)</Text>
+      <TextInput
+        accessibilityLabel="Expense note"
+        editable={!saving}
+        maxLength={500}
+        multiline
+        numberOfLines={2}
+        style={[styles.input, styles.noteInput]}
+        value={note}
+        onChangeText={setNote}
+        placeholder="Add context, details, or items…"
+        placeholderTextColor={Colors.textSecondary}
+      />
       {!!error && (
         <Text accessibilityRole="alert" style={styles.error}>
           {error}
@@ -160,6 +176,11 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     minHeight: 56,
   },
+  noteInput: {
+    minHeight: 72,
+    textAlignVertical: 'top',
+    fontSize: 15,
+  },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     paddingHorizontal: 14,
@@ -182,3 +203,4 @@ const styles = StyleSheet.create({
   saveText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
   cancel: { alignItems: 'center', justifyContent: 'center', minHeight: 48 },
 });
+

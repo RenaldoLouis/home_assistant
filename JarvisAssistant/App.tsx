@@ -123,11 +123,16 @@ export default function App() {
                 'id-ID',
               )} in income`
             : '';
+        const actualPart =
+          report.incomeTotal > 0
+            ? ` (actual spend: IDR ${report.netSpend.toLocaleString('id-ID')})`
+            : '';
         return `${prefix}For ${dayKey(
           date,
         )}, you have recorded IDR ${report.total.toLocaleString(
           'id-ID',
-        )} across ${report.expenseCount} expenses${incomePart}.`;
+        )} across ${report.expenseCount} expenses${incomePart}${actualPart}.`;
+
       },
       onPlayMusic: async () => ({
         success: false,
@@ -413,6 +418,7 @@ function toEditableExpense(
   }
 
   const type: TransactionType = data.type === 'income' ? 'income' : 'expense';
+  const note = normalizeString(data.note);
 
   return {
     id: expenseId,
@@ -422,6 +428,7 @@ function toEditableExpense(
     bank: normalizeString(data.bank) || 'Unknown',
     date: date.toISOString(),
     type,
+    ...(note ? { note } : {}),
     ...(typeof data.originalAmount === 'number'
       ? { originalAmount: data.originalAmount }
       : {}),

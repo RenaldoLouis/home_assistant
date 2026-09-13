@@ -123,7 +123,52 @@ test('an expense editor saves a changed amount and category', async () => {
     amount: 18000,
     category: 'Dating',
     date: props.expenses[0].date,
+    note: '',
   });
+});
+
+test('allows entering and saving a custom note in expense editor', async () => {
+  await press('Edit Food, Rp 25.000');
+  await act(async () => {
+    screen.root
+      .findAllByType(TextInput)
+      .find(node => node.props.accessibilityLabel === 'Expense note')!
+      .props.onChangeText('Lunch meeting with client');
+  });
+  const saveButton = screen.root.findAll(
+    node =>
+      node.props.onPress &&
+      node.findAllByProps({ children: 'Save changes' }).length > 0,
+  )[0];
+  await act(async () => {
+    await saveButton.props.onPress();
+  });
+  expect(save).toHaveBeenCalledWith('one', {
+    amount: 25000,
+    category: 'Food',
+    date: props.expenses[0].date,
+    note: 'Lunch meeting with client',
+  });
+});
+
+test('displays custom note on expense card when present', async () => {
+  const propsWithNote: DashboardScreenProps = {
+    ...props,
+    expenses: [
+      {
+        ...props.expenses[0],
+        note: 'Team coffee break',
+      },
+      props.expenses[1],
+    ],
+  };
+  await act(async () => {
+    screen.update(<DashboardScreen {...propsWithNote} />);
+  });
+
+  expect(
+    screen.root.findAllByProps({ children: 'Team coffee break' }).length,
+  ).toBeGreaterThan(0);
 });
 
 test('a loading state does not represent unavailable spending as zero', async () => {
@@ -135,7 +180,7 @@ test('a loading state does not represent unavailable spending as zero', async ()
   ).toHaveLength(0);
 });
 
-test('renders income with positive prefix and shows received indicator on summary', async () => {
+test('renders income with positive prefix, received indicator, and actual spend on day and week recap', async () => {
   const propsWithIncome: DashboardScreenProps = {
     ...props,
     expenses: [
@@ -166,7 +211,27 @@ test('renders income with positive prefix and shows received indicator on summar
       children: 'Received: +Rp 68.000',
     }).length,
   ).toBeGreaterThan(0);
+
+  // Today (2026-09-10): spent 25.000, income 68.000 -> spend minus earn = -43.000 (net saved 43.000)
+  expect(
+    screen.root.findAllByProps({
+      children: 'Net saved: +Rp 43.000',
+    }).length,
+  ).toBeGreaterThan(0);
+
+  // Week recap: spent (25.000 + 10.000) = 35.000, income 68.000 -> actual spend = -33.000
+  expect(
+    screen.root.findAllByProps({
+      children: 'Rp 35.000 spent · +Rp 68.000 earned',
+    }).length,
+  ).toBeGreaterThan(0);
+  expect(
+    screen.root.findAllByProps({
+      children: '-Rp 33.000',
+    }).length,
+  ).toBeGreaterThan(0);
 });
+
 
 test('settings panel provides battery settings navigation and listener re-connect trigger', async () => {
   const openSettingsSpy = jest

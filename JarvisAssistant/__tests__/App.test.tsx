@@ -34,13 +34,19 @@ interface DashboardProps {
     category: string;
     bank: string;
     date: string;
+    note?: string;
   }>;
   categoryOptions: string[];
   saveFailed: boolean;
   onRetrySave: () => void;
   onExpenseSave: (
     expenseId: string,
-    edit: { amount: number; category: string; date: string },
+    edit: {
+      amount: number;
+      category: string;
+      date: string;
+      note?: string;
+    },
   ) => Promise<void>;
 }
 
@@ -118,10 +124,12 @@ test('saves amount and category corrections to the existing document', async () 
   expect(latestProps.categoryOptions).toContain('Dating');
   expect(latestProps.categoryOptions).toContain('Income');
 
-  await latestProps.onExpenseSave('expense-id-1', {
-    amount: 18000,
-    category: 'Dating',
-    date: '2026-09-10T05:00:00.000Z',
+  await ReactTestRenderer.act(async () => {
+    await latestProps.onExpenseSave('expense-id-1', {
+      amount: 18000,
+      category: 'Dating',
+      date: '2026-09-10T05:00:00.000Z',
+    });
   });
 
   expect(updateDoc).toHaveBeenCalledWith(mockExpenseDocRef, {
@@ -131,9 +139,57 @@ test('saves amount and category corrections to the existing document', async () 
     type: 'expense',
     originalAmount: 25000,
     originalCategory: 'Food',
+    note: '',
     updatedAt: 'SERVER_TIMESTAMP',
   });
 });
+
+test('parses and persists custom note on expenses', async () => {
+  mockExpenseDocs = [
+    {
+      id: 'expense-id-1',
+      data: () => ({
+        amount: 50000,
+        category: 'Food',
+        date: '2026-09-10T05:00:00.000Z',
+        note: 'Special dinner with family',
+      }),
+    },
+  ];
+
+  await ReactTestRenderer.act(async () => {
+    ReactTestRenderer.create(<App />);
+    await Promise.resolve();
+  });
+
+  const latestCall = mockDashboardScreen.mock.calls[
+    mockDashboardScreen.mock.calls.length - 1
+  ] as [DashboardProps];
+  const latestProps = latestCall[0];
+
+  expect(latestProps.expenses[0].note).toBe('Special dinner with family');
+
+  await ReactTestRenderer.act(async () => {
+    await latestProps.onExpenseSave('expense-id-1', {
+      amount: 50000,
+      category: 'Food',
+      date: '2026-09-10T05:00:00.000Z',
+      note: 'Updated dinner note',
+    });
+  });
+
+  expect(updateDoc).toHaveBeenCalledWith(mockExpenseDocRef, {
+    category: 'Food',
+    amount: 50000,
+    date: '2026-09-10T05:00:00.000Z',
+    type: 'expense',
+    originalAmount: 50000,
+    originalCategory: 'Food',
+    note: 'Updated dinner note',
+    updatedAt: 'SERVER_TIMESTAMP',
+  });
+});
+
 
 test('passes Firestore timestamp expenses through to the dashboard list', async () => {
   mockExpenseDocs = [
