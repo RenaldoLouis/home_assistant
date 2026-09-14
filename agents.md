@@ -354,6 +354,12 @@ Stats: 23 obs (6,319t read) | 364,986t work | 98% savings
   - Configured 1-by-1 conversational review instructions in `buildJarvisSystemInstruction` (`GeminiLiveService.ts`)
   - Added `sendTextMessage` in `GeminiLiveService.ts` for client content turn injection
   - Added dashboard triggers: "Review with Jarvis" spark chip on dashboard and "Review today's spending 1-by-1" in Voice Sheet
+2804 08:25a ✅ Wireless ADB Release Build & Deployment
+  - Compiled clean release APK (`./gradlew assembleRelease`, 79.8MB)
+  - Successfully connected to physical device (`SM_S721B`) over wireless debugging (`192.168.210.217:37069`)
+  - Streamed and installed release APK (`adb install -r app-release.apk`)
+  - Successfully launched and verified `com.jarvisassistant/.MainActivity` in foreground
+
 
 Access 365k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
