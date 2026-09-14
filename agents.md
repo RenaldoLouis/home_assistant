@@ -5,6 +5,7 @@ This project is a React Native (Android) application that serves as a DIY person
 The goal is to provide voice-controlled home automation, real-time banking expense tracking, and conversational intelligence using an Android phone, without relying on expensive, proprietary smart home hubs. 
 
 > **Detailed Architecture & Subsystems Documentation**: See [JarvisAssistant/docs/architecture-and-system-overview.md](JarvisAssistant/docs/architecture-and-system-overview.md) for full diagrams, data flow specifications, directory maps, and AI tool execution protocols. 
+> **Production Progress & Roadmap**: See [JarvisAssistant/docs/progress.md](JarvisAssistant/docs/progress.md) for active deployment milestones, completed phases, and upcoming Google Play Store release requirements. 
 
 ## Tech Stack
 - **Framework**: React Native (Targeting Android exclusively for now, Bare Workflow recommended over Expo for native Bluetooth/Audio control)
@@ -369,12 +370,22 @@ Stats: 23 obs (6,319t read) | 364,986t work | 98% savings
   - Integrated `@react-native-firebase/auth@26.1.0` (Modular API) and `@react-native-google-signin/google-signin`
   - Created `authService.ts`: Native Google Sign-In with credential exchange, anonymous guest fallback, sign-out, auth state observer (`onAuthStateChanged`), and `getActiveUserId()` helper
   - Created `AuthContext.tsx`: Full React context provider and `useAuth` hook managing user lifecycle and login methods
-  - Built `LoginScreen.tsx`: Obsidian dark theme `#050D1A`, Arc-Reactor cyan emblem, Google Sign-In button, and "Continue as Guest (Offline)" fallback
+  - Restyled `LoginScreen.tsx`: Warm Linen & Botanical Editorial theme (`#F5F4F0` background, serif headline, white card, mint badges, white Google pill, outline guest button)
   - Updated `DashboardScreen.tsx`: Added user profile chip in header and Account & Security card in Settings sheet with Sign Out and Phase 2 Couple Sharing teaser
   - Scoped expense persistence from flat `/expenses` to `/users/{userId}/expenses` with `userId` and `ledgerId` injected across foreground writes and background `headlessTask.js`
   - Created `firestore.rules`: Strict `isOwner(userId)` access control (`request.auth.uid == userId`), validation rules, and future-proof `/households/{householdId}` rules for Couple/Household shared spending
   - Updated test suite: Added unit tests `authService.test.ts`, `AuthContext.test.tsx`, `LoginScreen.test.tsx`, and updated `App.test.tsx` (14 suites, 87 unit tests passing, zero TypeScript errors)
-  - Built fresh release APK (`assembleRelease`, 78MB) signed with `jarvis.keystore`
+  - Built fresh release APK (`assembleRelease`, 78MB) signed with `jarvis.keystore` and installed via wireless ADB to Samsung Galaxy S24 FE
+2807 11:15a 🟣 Master Progress Roadmap & Design Alignment Documentation
+  - Created `JarvisAssistant/docs/progress.md` and repository-level `PROGRESS.md`
+  - Indexed Phase 1 (Completed), Phase 2 (Completed), Phase 3 (In Progress), Phase 4 (Upcoming), Phase 5 (Backlog)
+  - Cross-linked `progress.md` and `design-system.md` in `AGENTS.md` and `architecture-and-system-overview.md`
+2808 11:25a 🟣 Botanical Spark Brand Icon Overhaul & Deployment
+  - Redesigned app icon to Warm Linen & Botanical Editorial theme: 4-point organic spark of clarity in soft sage mint (`#E4EFE8`) and warm linen ivory (`#F5F4F0`) on deep forest botanical teal (`#166359`)
+  - Sized emblem to 45.5% canvas to guarantee 100% Android adaptive safe-zone margin across all launcher shapes
+  - Generated and deployed `app_logo.png` (512x512) and all mipmaps (`ic_launcher.png`, `ic_launcher_round.png`, `ic_launcher_foreground.png`) across mdpi, hdpi, xhdpi, xxhdpi, xxxhdpi
+  - Updated `values/colors.xml` (`ic_launcher_background` to `#166359`)
+  - Recompiled release APK (`assembleRelease`, 78MB) and deployed wirelessly via ADB to Samsung Galaxy S24 FE (`Success`)
 
 
 

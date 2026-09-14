@@ -229,7 +229,9 @@ JarvisAssistant/
 │   ├── expenseSummary.test.ts
 │   └── headlessTask.test.js
 └── docs/                             # Deep-dive internal engineering guides
-    ├── architecture-and-system-overview.md # THIS FILE
+    ├── progress.md                         # Master production roadmap & milestone tracker
+    ├── design-system.md                    # Warm Linen & Botanical Editorial design specification
+    ├── architecture-and-system-overview.md # Core architecture and system overview
     ├── notification-expense-reader.md      # Headless JS & NotificationListenerService deep dive
     ├── wifi-debugging-guide.md             # Android adb Wi-Fi deployment guide
     └── ui-ux-redesign-validation.md        # Validation checklist & device testing notes
