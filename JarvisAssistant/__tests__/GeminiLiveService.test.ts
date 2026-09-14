@@ -83,6 +83,21 @@ describe('GeminiLiveService', () => {
     expect(withContext).toContain('DAILY SPENDING CONTEXT:');
     expect(withContext).toContain('Today: IDR 50.000 spent');
     expect(withContext).toContain('DO NOT call get_daily_recap');
+    expect(withContext).toContain('DAILY 1-BY-1 SPENDING REVIEW:');
+    expect(withContext).toContain('update_expense');
+  });
+
+  it('sends text message as clientContent turn over WebSocket', async () => {
+    await service.startSession();
+    await new Promise<void>(resolve => setTimeout(resolve, 10));
+
+    service.sendTextMessage('Let’s review today’s spending.');
+    const ws = MockWebSocket.instances[0];
+    const clientMsg = JSON.parse(ws.sentMessages[ws.sentMessages.length - 1]);
+    expect(clientMsg.clientContent.turns[0].parts[0].text).toBe(
+      'Let’s review today’s spending.',
+    );
+    expect(clientMsg.clientContent.turnComplete).toBe(true);
   });
 
   it('allows updating system instructions dynamically before starting session', async () => {

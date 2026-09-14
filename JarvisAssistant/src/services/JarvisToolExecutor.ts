@@ -54,12 +54,77 @@ export const JARVIS_TOOL_DECLARATIONS: FunctionDeclaration[] = [
       },
     },
   },
+  {
+    name: 'update_expense',
+    description: 'Update category, note, or type of an expense transaction during review.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        expense_id: {
+          type: 'STRING',
+          description: 'The unique ID of the expense transaction.',
+        },
+        category: {
+          type: 'STRING',
+          description: 'The updated category (e.g. "Food", "Coffee", "Dating", "Income").',
+        },
+        note: {
+          type: 'STRING',
+          description: 'A contextual note explaining the spending.',
+        },
+        type: {
+          type: 'STRING',
+          description: 'Transaction type: either "expense" or "income".',
+        },
+      },
+      required: ['expense_id'],
+    },
+  },
+  {
+    name: 'delete_expense',
+    description: 'Delete an expense transaction by ID (for erroneous or duplicate items).',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        expense_id: {
+          type: 'STRING',
+          description: 'The unique ID of the expense to delete.',
+        },
+      },
+      required: ['expense_id'],
+    },
+  },
+  {
+    name: 'get_daily_expenses',
+    description: 'Get the itemized list of expenses for a date to review them one by one.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        date: {
+          type: 'STRING',
+          description: 'Optional date (YYYY-MM-DD) to get expenses for. Defaults to today.',
+        },
+      },
+    },
+  },
 ];
 
 export interface ToolExecutionHandlers {
   onControlLight?: (args: { state: boolean; protocol?: string }) => Promise<{ success: boolean; message: string }>;
   onPlayMusic?: (args: { app: string }) => Promise<{ success: boolean; message: string }>;
   onGetDailyRecap?: (args?: { date?: string }) => string | Promise<string>;
+  onUpdateExpense?: (args: {
+    expense_id: string;
+    category?: string;
+    note?: string;
+    type?: string;
+  }) => Promise<{ success: boolean; message: string }>;
+  onDeleteExpense?: (args: {
+    expense_id: string;
+  }) => Promise<{ success: boolean; message: string }>;
+  onGetDailyExpenses?: (args?: {
+    date?: string;
+  }) => Promise<{ expenses: Array<Record<string, unknown>> }> | { expenses: Array<Record<string, unknown>> };
 }
 
 export interface FunctionResponsePayload {
@@ -111,6 +176,64 @@ export async function executeJarvisTool(
         return {
           id: callId,
           response: { output: { summary: 'No spending recorded for today.' } },
+        };
+      }
+
+      case 'update_expense': {
+        const expenseId = args.expense_id as string;
+        const category = args.category as string | undefined;
+        const note = args.note as string | undefined;
+        const type = args.type as string | undefined;
+        if (handlers?.onUpdateExpense) {
+          const result = await handlers.onUpdateExpense({
+            expense_id: expenseId,
+            category,
+            note,
+            type,
+          });
+          return { id: callId, response: { output: result } };
+        }
+        return {
+          id: callId,
+          response: {
+            output: {
+              success: true,
+              message: `Expense ${expenseId} updated.`,
+            },
+          },
+        };
+      }
+
+      case 'delete_expense': {
+        const expenseId = args.expense_id as string;
+        if (handlers?.onDeleteExpense) {
+          const result = await handlers.onDeleteExpense({
+            expense_id: expenseId,
+          });
+          return { id: callId, response: { output: result } };
+        }
+        return {
+          id: callId,
+          response: {
+            output: {
+              success: true,
+              message: `Expense ${expenseId} deleted.`,
+            },
+          },
+        };
+      }
+
+      case 'get_daily_expenses': {
+        const date = args.date as string | undefined;
+        if (handlers?.onGetDailyExpenses) {
+          const result = await handlers.onGetDailyExpenses({ date });
+          return { id: callId, response: { output: result } };
+        }
+        return {
+          id: callId,
+          response: {
+            output: { expenses: [] },
+          },
         };
       }
 

@@ -23,6 +23,8 @@ jest.mock('../src/components/Icon', () => ({
 }));
 let screen: Renderer.ReactTestRenderer;
 const save = jest.fn(() => Promise.resolve());
+const deleteMock = jest.fn(() => Promise.resolve());
+const startReviewMock = jest.fn();
 const props: DashboardScreenProps = {
   isRecordingCommand: false,
   commandText: '',
@@ -47,16 +49,18 @@ const props: DashboardScreenProps = {
       date: new Date(2026, 8, 9, 12).toISOString(),
     },
   ],
-  categoryOptions: ['Food', 'Transport', 'Dating'],
+  categoryOptions: ['Food', 'Transport', 'Dating', 'Income'],
   dataStatus: 'synced',
   setShowNotifModal: jest.fn(),
   startListening: jest.fn(),
   stopListening: jest.fn(),
   onExpenseSave: save,
+  onExpenseDelete: deleteMock,
   onRequestNotifPermission: jest.fn(),
   onRetry: jest.fn(),
   dailyNotes: '',
   setDailyNotes: jest.fn(),
+  onStartDailyReview: startReviewMock,
 };
 const press = async (label: string) =>
   act(async () => {
@@ -123,8 +127,50 @@ test('an expense editor saves a changed amount and category', async () => {
     amount: 18000,
     category: 'Dating',
     date: props.expenses[0].date,
+    type: 'expense',
     note: '',
   });
+});
+
+test('an expense editor saves a changed category to Income with type: income', async () => {
+  await press('Edit Food, Rp 25.000');
+  await act(async () => {
+    screen.root
+      .findAllByType(TextInput)
+      .find(node => node.props.accessibilityLabel === 'Category')!
+      .props.onChangeText('Income');
+  });
+  const saveButton = screen.root.findAll(
+    node =>
+      node.props.onPress &&
+      node.findAllByProps({ children: 'Save changes' }).length > 0,
+  )[0];
+  await act(async () => {
+    await saveButton.props.onPress();
+  });
+  expect(save).toHaveBeenCalledWith('one', {
+    amount: 25000,
+    category: 'Income',
+    date: props.expenses[0].date,
+    type: 'income',
+    note: '',
+  });
+});
+
+test('an expense editor deletes an expense with modal confirmation', async () => {
+  await press('Edit Food, Rp 25.000');
+  await press('Delete expense');
+  // In-modal confirmation prompt is displayed
+  expect(
+    screen.root.findAllByProps({ children: 'Delete this transaction?' }).length,
+  ).toBeGreaterThan(0);
+  await press('Confirm delete expense');
+  expect(deleteMock).toHaveBeenCalledWith('one');
+});
+
+test('tapping review with jarvis triggers onStartDailyReview', async () => {
+  await press('Review with Jarvis');
+  expect(startReviewMock).toHaveBeenCalledTimes(1);
 });
 
 test('allows entering and saving a custom note in expense editor', async () => {
@@ -147,6 +193,7 @@ test('allows entering and saving a custom note in expense editor', async () => {
     amount: 25000,
     category: 'Food',
     date: props.expenses[0].date,
+    type: 'expense',
     note: 'Lunch meeting with client',
   });
 });

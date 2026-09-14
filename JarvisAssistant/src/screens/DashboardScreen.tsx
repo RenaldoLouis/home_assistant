@@ -36,6 +36,7 @@ export interface DashboardScreenProps {
   startListening: () => void;
   stopListening: () => void;
   onExpenseSave: (id: string, edit: ExpenseEdit) => Promise<void>;
+  onExpenseDelete?: (id: string) => Promise<void>;
   onRequestNotifPermission: () => void;
   onRetry: () => void;
   saveFailed?: boolean;
@@ -43,6 +44,7 @@ export interface DashboardScreenProps {
   onDismissSaveError?: () => void;
   dailyNotes: string;
   setDailyNotes: (notes: string) => void;
+  onStartDailyReview?: () => void;
 }
 const money = (amount: number) => `Rp ${amount.toLocaleString('id-ID')}`;
 const compactMoney = (amount: number) =>
@@ -393,10 +395,22 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
         </ScrollView>
       </View>
       <View style={s.listHeading}>
-        <Text accessibilityRole="header" style={s.sectionTitle}>
-          {isToday ? 'Today’s expenses' : 'Your expenses'}
-        </Text>
-        <Text style={s.meta}>Tap to edit</Text>
+        <View>
+          <Text accessibilityRole="header" style={s.sectionTitle}>
+            {isToday ? 'Today’s expenses' : 'Your expenses'}
+          </Text>
+          <Text style={s.meta}>Tap to edit</Text>
+        </View>
+        {isToday && report.expenseCount > 0 && props.onStartDailyReview && (
+          <AnimatedPressable
+            onPress={props.onStartDailyReview}
+            accessibilityLabel="Review with Jarvis"
+            style={s.reviewChip}
+          >
+            <Icon name="spark" color={Colors.accent} size={14} />
+            <Text style={s.reviewChipText}>Review with Jarvis</Text>
+          </AnimatedPressable>
+        )}
       </View>
       {props.dataStatus !== 'synced' && (
         <View style={s.notice}>
@@ -615,6 +629,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
           expense={editing}
           categories={props.categoryOptions}
           onSave={props.onExpenseSave}
+          onDelete={props.onExpenseDelete}
           onClose={() => setEditing(null)}
         />
       )}
@@ -649,11 +664,25 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
                 : props.startListening
             }
             style={s.primaryButton}
+            accessibilityLabel={
+              props.isRecordingCommand ? 'Stop conversation' : 'Start talking'
+            }
           >
             <Text style={s.primaryText}>
               {props.isRecordingCommand ? 'Stop conversation' : 'Start talking'}
             </Text>
           </AnimatedPressable>
+          {props.onStartDailyReview && !props.isRecordingCommand && (
+            <AnimatedPressable
+              onPress={props.onStartDailyReview}
+              style={s.secondaryButton}
+              accessibilityLabel="Review today’s spending 1-by-1"
+            >
+              <Text style={s.secondaryButtonText}>
+                Review today’s spending 1-by-1
+              </Text>
+            </AnimatedPressable>
+          )}
         </Sheet>
       )}
       {panel === 'settings' && (

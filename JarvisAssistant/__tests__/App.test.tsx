@@ -5,7 +5,7 @@
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
 import { Linking } from 'react-native';
-import { updateDoc } from '@react-native-firebase/firestore';
+import { updateDoc, deleteDoc } from '@react-native-firebase/firestore';
 import App from '../App';
 import { ToolExecutionHandlers } from '../src/services/JarvisToolExecutor';
 
@@ -16,6 +16,8 @@ jest.mock(
 );
 const mockSetToolHandlers = jest.fn();
 const mockStopSession = jest.fn();
+const mockStartSession = jest.fn();
+const mockSendTextMessage = jest.fn();
 const mockCreateService = jest.fn();
 const mockSetSystemInstruction = jest.fn();
 jest.mock('../src/services/GeminiLiveService', () => ({
@@ -25,7 +27,9 @@ jest.mock('../src/services/GeminiLiveService', () => ({
       on: jest.fn(() => jest.fn()),
       setToolHandlers: mockSetToolHandlers,
       setSystemInstruction: mockSetSystemInstruction,
+      startSession: mockStartSession,
       stopSession: mockStopSession,
+      sendTextMessage: mockSendTextMessage,
     };
   }),
   buildJarvisSystemInstruction: jest.fn(
@@ -53,9 +57,12 @@ interface DashboardProps {
       amount: number;
       category: string;
       date: string;
+      type?: 'expense' | 'income';
       note?: string;
     },
   ) => Promise<void>;
+  onExpenseDelete?: (expenseId: string) => Promise<void>;
+  onStartDailyReview?: () => void;
 }
 
 const mockDashboardScreen = jest.fn((_props: DashboardProps) => null);
@@ -93,6 +100,7 @@ jest.mock('@react-native-firebase/firestore', () => ({
   }),
   doc: jest.fn(() => mockExpenseDocRef),
   updateDoc: jest.fn(() => Promise.resolve()),
+  deleteDoc: jest.fn(() => Promise.resolve()),
   serverTimestamp: jest.fn(() => 'SERVER_TIMESTAMP'),
 }));
 
@@ -386,6 +394,91 @@ test('launches Spotify intent when onPlayMusic tool handler executes', async () 
 
   canOpenSpy.mockRestore();
   openSpy.mockRestore();
+  await ReactTestRenderer.act(async () => renderer!.unmount());
+});
+
+test('deletes expense when onExpenseDelete is called', async () => {
+  let renderer: ReactTestRenderer.ReactTestRenderer;
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(<App />);
+  });
+  const lastCallProps =
+    mockDashboardScreen.mock.calls[mockDashboardScreen.mock.calls.length - 1][0];
+  await ReactTestRenderer.act(async () => {
+    await lastCallProps.onExpenseDelete?.('expense-to-delete');
+  });
+  expect(deleteDoc).toHaveBeenCalledTimes(1);
+  await ReactTestRenderer.act(async () => renderer!.unmount());
+});
+
+test('executes onUpdateExpense, onDeleteExpense, and onGetDailyExpenses tool handlers', async () => {
+  mockExpenseDocs = [
+    {
+      id: 'exp-1',
+      data: () => ({
+        amount: 25000,
+        category: 'Food',
+        merchant: 'Cafe',
+        bank: 'BCA',
+        date: new Date().toISOString(),
+        note: 'lunch',
+      }),
+    },
+  ];
+  let renderer: ReactTestRenderer.ReactTestRenderer;
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(<App />);
+  });
+
+  const handlers: ToolExecutionHandlers =
+    mockSetToolHandlers.mock.calls[
+      mockSetToolHandlers.mock.calls.length - 1
+    ][0];
+
+  const updateResult = await handlers.onUpdateExpense?.({
+    expense_id: 'exp-1',
+    category: 'Coffee',
+    note: 'latte',
+  });
+  expect(updateResult?.success).toBe(true);
+  expect(updateDoc).toHaveBeenCalled();
+
+  const deleteResult = await handlers.onDeleteExpense?.({
+    expense_id: 'exp-1',
+  });
+  expect(deleteResult?.success).toBe(true);
+  expect(deleteDoc).toHaveBeenCalled();
+
+  const getResult = await handlers.onGetDailyExpenses?.();
+  expect(
+    getResult &&
+      'expenses' in getResult &&
+      Array.isArray(getResult.expenses) &&
+      getResult.expenses.length,
+  ).toBe(1);
+
+  await ReactTestRenderer.act(async () => renderer!.unmount());
+});
+
+test('starts daily review when onStartDailyReview is called', async () => {
+  jest.useFakeTimers();
+  let renderer: ReactTestRenderer.ReactTestRenderer;
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(<App />);
+  });
+  const lastCallProps =
+    mockDashboardScreen.mock.calls[mockDashboardScreen.mock.calls.length - 1][0];
+  await ReactTestRenderer.act(async () => {
+    lastCallProps.onStartDailyReview?.();
+  });
+  expect(mockStartSession).toHaveBeenCalled();
+  await ReactTestRenderer.act(async () => {
+    jest.advanceTimersByTime(1100);
+  });
+  expect(mockSendTextMessage).toHaveBeenCalledWith(
+    expect.stringContaining('daily spending review'),
+  );
+  jest.useRealTimers();
   await ReactTestRenderer.act(async () => renderer!.unmount());
 });
 

@@ -35,6 +35,11 @@ export function buildJarvisSystemInstruction(spendingContext?: string): string {
     '- Answer in ONE short, natural sentence (maximum 25 words). Never use lists or preamble.',
     '- If asked to play music or songs, call play_music with app="spotify" immediately.',
     '- If asked to turn lights or lamp on or off, call control_light immediately.',
+    'DAILY 1-BY-1 SPENDING REVIEW:',
+    '- When asked to review today\'s spending/expenses, go through expenses 1-by-1.',
+    '- For each expense: state the amount in rupiah, merchant, and time. Ask what category and note to set.',
+    '- Call update_expense to save the user\'s chosen category and note, or delete_expense if duplicate/removed.',
+    '- Acknowledge the update in ONE brief sentence and move directly to the next expense.',
   ];
 
   if (spendingContext && spendingContext.trim()) {
@@ -263,6 +268,24 @@ export class GeminiLiveService {
     };
 
     this.ws.send(JSON.stringify(audioPayload));
+  }
+
+  public sendTextMessage(text: string): void {
+    if (!this.ws || this.ws.readyState !== 1) return;
+
+    const textPayload = {
+      clientContent: {
+        turns: [
+          {
+            role: 'user',
+            parts: [{ text }],
+          },
+        ],
+        turnComplete: true,
+      },
+    };
+
+    this.ws.send(JSON.stringify(textPayload));
   }
 
   private parseEventData(data: unknown): Record<string, unknown> | Promise<Record<string, unknown> | null> | null {

@@ -23,6 +23,7 @@ import {
   doc,
   onSnapshot,
   updateDoc,
+  deleteDoc,
   serverTimestamp,
 } from '@react-native-firebase/firestore';
 import { DashboardScreen } from './src/screens/DashboardScreen';
@@ -172,13 +173,102 @@ export default function App() {
         message:
           'Your Prolink DS-3601 lamp still needs to be connected to Jarvis. Use mEzee for now.',
       }),
+      onUpdateExpense: async ({ expense_id, category, note, type }) => {
+        const expense = expenses.find(item => item.id === expense_id);
+        if (!expense) {
+          return {
+            success: false,
+            message: `Expense with ID ${expense_id} not found.`,
+          };
+        }
+        const updateData: Record<string, unknown> = {
+          updatedAt: serverTimestamp(),
+        };
+        if (category) {
+          updateData.category = category.trim();
+          if (category.trim().toLowerCase() === 'income') {
+            updateData.type = 'income';
+          } else if (
+            expense.category?.toLowerCase() === 'income' ||
+            expense.type === 'income'
+          ) {
+            updateData.type = 'expense';
+          }
+        }
+        if (note !== undefined) {
+          updateData.note = note.trim();
+        }
+        if (type) {
+          updateData.type = type === 'income' ? 'income' : 'expense';
+        }
+        try {
+          const expenseRef = doc(
+            collection(getFirestore(), 'users', JARVIS_USER_ID, 'expenses'),
+            expense_id,
+          );
+          await updateDoc(expenseRef, updateData);
+          triggerHaptic('impactLight');
+          return {
+            success: true,
+            message: `Successfully updated expense ${expense_id}${
+              category ? ` to category ${category}` : ''
+            }${note ? ` with note "${note}"` : ''}.`,
+          };
+        } catch (error) {
+          return {
+            success: false,
+            message: `Failed to update expense: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          };
+        }
+      },
+      onDeleteExpense: async ({ expense_id }) => {
+        try {
+          const expenseRef = doc(
+            collection(getFirestore(), 'users', JARVIS_USER_ID, 'expenses'),
+            expense_id,
+          );
+          await deleteDoc(expenseRef);
+          triggerHaptic('impactLight');
+          return {
+            success: true,
+            message: `Successfully deleted expense ${expense_id}.`,
+          };
+        } catch (error) {
+          return {
+            success: false,
+            message: `Failed to delete expense: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          };
+        }
+      },
+      onGetDailyExpenses: ({ date } = {}) => {
+        const targetDate = date ? parseDay(date) : new Date();
+        if (!targetDate) return { expenses: [] };
+        const report = buildDayReport(expenses, targetDate);
+        return {
+          expenses: report.expenses.map(item => ({
+            id: item.id,
+            amount: item.amount,
+            merchant: item.merchant,
+            bank: item.bank,
+            category: item.category,
+            type: item.type,
+            date: item.date,
+            note: item.note || '',
+          })),
+        };
+      },
     }),
     [expenses, dataStatus],
   );
 
   const spendingContext = useMemo(() => {
-    const todayReport = buildDayReport(expenses, new Date());
-    return `Today (${dayKey(new Date())}): IDR ${todayReport.total.toLocaleString(
+    const today = new Date();
+    const todayReport = buildDayReport(expenses, today);
+    const summaryLine = `Today (${dayKey(today)}): IDR ${todayReport.total.toLocaleString(
       'id-ID',
     )} spent across ${todayReport.expenseCount} expenses${
       todayReport.incomeTotal > 0
@@ -189,6 +279,24 @@ export default function App() {
           )})`
         : ''
     }.`;
+
+    if (todayReport.expenses.length === 0) {
+      return `${summaryLine}\nNo transactions recorded today yet.`;
+    }
+
+    const items = todayReport.expenses.map((item, index) => {
+      const timeStr = new Date(item.date).toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      const typeStr = item.type === 'income' ? 'Income (+)' : 'Expense';
+      const noteStr = item.note ? `, note: "${item.note}"` : ', no note';
+      return `${index + 1}. [ID: ${item.id}] ${typeStr} IDR ${item.amount.toLocaleString(
+        'id-ID',
+      )} at ${timeStr} from ${item.merchant} (${item.bank}), category: ${item.category}${noteStr}`;
+    });
+
+    return `${summaryLine}\nTODAY'S TRANSACTIONS (FOR 1-BY-1 REVIEW):\n${items.join('\n')}`;
   }, [expenses]);
 
   const triggerHaptic = (
@@ -306,6 +414,15 @@ export default function App() {
   const stopListening = useCallback(() => {
     liveServiceRef.current?.stopSession();
   }, []);
+
+  const startDailyReview = useCallback(async () => {
+    await startListening();
+    setTimeout(() => {
+      liveServiceRef.current?.sendTextMessage(
+        'Jarvis, let’s do my daily spending review 1 by 1.',
+      );
+    }, 1000);
+  }, [startListening]);
 
   // Deep Link (e.g. from homescreen shortcut or widget: jarvis://listen)
   useEffect(() => {
@@ -437,6 +554,23 @@ export default function App() {
     [expenses],
   );
 
+  const handleExpenseDelete = useCallback(
+    async (expenseId: string) => {
+      const expenseRef = doc(
+        collection(getFirestore(), 'users', JARVIS_USER_ID, 'expenses'),
+        expenseId,
+      );
+      try {
+        await deleteDoc(expenseRef);
+        triggerHaptic('impactLight');
+      } catch (error) {
+        console.error('[Jarvis] Failed to delete expense:', error);
+        throw error;
+      }
+    },
+    [],
+  );
+
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
@@ -459,6 +593,8 @@ export default function App() {
           expenses={expenses}
           categoryOptions={categoryOptions}
           onExpenseSave={handleExpenseSave}
+          onExpenseDelete={handleExpenseDelete}
+          onStartDailyReview={startDailyReview}
           saveFailed={failedSave !== null}
           onRetrySave={() => {
             if (failedSave)
@@ -482,14 +618,18 @@ function toEditableExpense(
     return null;
   }
 
-  const type: TransactionType = data.type === 'income' ? 'income' : 'expense';
+  const category = normalizeExpenseCategory(data.category);
+  const type: TransactionType =
+    data.type === 'income' || category.toLowerCase() === 'income'
+      ? 'income'
+      : 'expense';
   const note = normalizeString(data.note);
 
   return {
     id: expenseId,
     amount,
     merchant: normalizeString(data.merchant) || 'Unknown',
-    category: normalizeExpenseCategory(data.category),
+    category,
     bank: normalizeString(data.bank) || 'Unknown',
     date: date.toISOString(),
     type,
