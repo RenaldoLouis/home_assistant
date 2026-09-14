@@ -20,6 +20,7 @@ import { OrbState } from '../components/JarvisOrb';
 import { addDays, dayKey, parseDay } from '../expenses/dates';
 import { buildDayReport } from '../expenses/expenseSummary';
 import { EditableExpense, ExpenseEdit } from '../expenses/types';
+import { UserProfile } from '../auth/types';
 import { Colors } from '../theme/colors';
 import { dashboardStyles as s } from './DashboardScreen.styles';
 
@@ -45,6 +46,9 @@ export interface DashboardScreenProps {
   dailyNotes: string;
   setDailyNotes: (notes: string) => void;
   onStartDailyReview?: () => void;
+  user?: UserProfile | null;
+  onSignOut?: () => void;
+  onSignInRequest?: () => void;
 }
 const money = (amount: number) => `Rp ${amount.toLocaleString('id-ID')}`;
 const compactMoney = (amount: number) =>
@@ -130,13 +134,45 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
           </View>
           <Text style={s.brandName}>jarvis</Text>
         </View>
-        <AnimatedPressable
-          onPress={() => setPanel('settings')}
-          accessibilityLabel="Open settings"
-          style={s.iconButton}
-        >
-          <Icon name="settings" />
-        </AnimatedPressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <AnimatedPressable
+            testID="header-profile-button"
+            onPress={() => setPanel('settings')}
+            accessibilityLabel={
+              props.user
+                ? `Signed in as ${props.user.displayName || props.user.email}`
+                : 'Guest mode'
+            }
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: Colors.mint,
+              borderWidth: 1,
+              borderColor: '#D2DCD0',
+              paddingHorizontal: 12,
+              paddingVertical: 5,
+              borderRadius: 16,
+              gap: 6,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: '600',
+                color: Colors.accent,
+              }}
+            >
+              {props.user ? props.user.displayName || 'Account' : 'Guest'}
+            </Text>
+          </AnimatedPressable>
+          <AnimatedPressable
+            onPress={() => setPanel('settings')}
+            accessibilityLabel="Open settings"
+            style={s.iconButton}
+          >
+            <Icon name="settings" />
+          </AnimatedPressable>
+        </View>
       </View>
       <View style={s.intro}>
         <Text style={s.eyebrow}>YOUR EVERYDAY COMPANION</Text>
@@ -687,6 +723,172 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
       )}
       {panel === 'settings' && (
         <Sheet title="Your Jarvis" onClose={() => setPanel(null)}>
+          <Text style={s.smallHeading}>Account & Security</Text>
+          {props.user ? (
+            <View
+              style={{
+                backgroundColor: '#F0F4EC',
+                padding: 16,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: '#D2DCD0',
+                marginBottom: 16,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: 4,
+                }}
+              >
+                <Text
+                  style={{
+                    color: Colors.textPrimary,
+                    fontWeight: '700',
+                    fontSize: 15,
+                  }}
+                >
+                  {props.user.displayName || 'Authenticated User'}
+                </Text>
+                <View
+                  style={{
+                    backgroundColor: Colors.mint,
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: 10,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: Colors.accent,
+                      fontSize: 10,
+                      fontWeight: '700',
+                    }}
+                  >
+                    SYNCED
+                  </Text>
+                </View>
+              </View>
+              {props.user.email && (
+                <Text style={{ color: Colors.textSecondary, fontSize: 13, marginTop: 2 }}>
+                  {props.user.email}
+                </Text>
+              )}
+              <Text
+                style={{
+                  color: Colors.accent,
+                  fontSize: 11.5,
+                  fontWeight: '600',
+                  marginTop: 8,
+                }}
+              >
+                🔒 Scoped Private Cloud Active
+              </Text>
+              <Text style={{ color: Colors.textSecondary, fontSize: 11, marginTop: 2 }}>
+                UID: {props.user.uid.slice(0, 14)}...
+              </Text>
+              <View
+                style={{
+                  marginTop: 12,
+                  padding: 10,
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: '#E8E8E1',
+                }}
+              >
+                <Text
+                  style={{
+                    color: Colors.accent,
+                    fontSize: 12,
+                    fontWeight: '700',
+                  }}
+                >
+                  👫 Couple Spending (Phase 2)
+                </Text>
+                <Text style={{ color: Colors.textSecondary, fontSize: 11.5, marginTop: 3, lineHeight: 16 }}>
+                  Shared spending ledger with your partner will be unlocked in Phase 2.
+                </Text>
+              </View>
+              {props.onSignOut && (
+                <AnimatedPressable
+                  testID="signout-button"
+                  onPress={() => {
+                    setPanel(null);
+                    props.onSignOut?.();
+                  }}
+                  style={{
+                    marginTop: 14,
+                    paddingVertical: 8,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: Colors.danger,
+                      fontWeight: '700',
+                      fontSize: 13,
+                    }}
+                  >
+                    Sign Out
+                  </Text>
+                </AnimatedPressable>
+              )}
+            </View>
+          ) : (
+            <View
+              style={{
+                backgroundColor: '#F0F4EC',
+                padding: 16,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: '#D2DCD0',
+                marginBottom: 16,
+              }}
+            >
+              <Text
+                style={{
+                  color: Colors.textPrimary,
+                  fontWeight: '700',
+                  fontSize: 14,
+                }}
+              >
+                Guest Mode (Local Device)
+              </Text>
+              <Text style={{ color: Colors.textSecondary, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}>
+                Sign in with Google to sync and secure your spending in your private cloud space.
+              </Text>
+              {props.onSignInRequest && (
+                <AnimatedPressable
+                  testID="settings-signin-button"
+                  onPress={() => {
+                    setPanel(null);
+                    props.onSignInRequest?.();
+                  }}
+                  style={{
+                    backgroundColor: Colors.accent,
+                    paddingVertical: 10,
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    marginTop: 12,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: '#FFFFFF',
+                      fontWeight: '600',
+                      fontSize: 13,
+                    }}
+                  >
+                    Sign in with Google
+                  </Text>
+                </AnimatedPressable>
+              )}
+            </View>
+          )}
+
           <Text style={s.smallHeading}>Spending capture</Text>
           <Text style={s.deviceDescription}>
             {props.notifPermission === 'authorized'

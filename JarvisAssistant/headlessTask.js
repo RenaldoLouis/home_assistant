@@ -9,6 +9,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { JARVIS_USER_ID } from './src/expenses/constants';
 import { parseExpenseNotification } from './src/notifications/expenseNotificationParser';
+import { getActiveUserId } from './src/auth/authService';
 
 const headlessTask = async ({ notification }) => {
   try {
@@ -26,9 +27,12 @@ const headlessTask = async ({ notification }) => {
     const capturedAt = Date.now();
     const validPostedAt =
       Number.isSafeInteger(postedAt) && postedAt > 0 && postedAt <= capturedAt;
+    const activeUid = getActiveUserId();
     const expenseId = uuidv4();
     const savedExpense = {
       id: expenseId,
+      userId: activeUid,
+      ledgerId: activeUid,
       amount: expenseData.amount,
       merchant: expenseData.merchant,
       category: expenseData.category,
@@ -47,7 +51,7 @@ const headlessTask = async ({ notification }) => {
 
     const db = getFirestore();
     const expenseRef = doc(
-      collection(db, 'users', JARVIS_USER_ID, 'expenses'),
+      collection(db, 'users', activeUid, 'expenses'),
       expenseId,
     );
 

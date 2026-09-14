@@ -14,6 +14,26 @@ jest.mock(
   'react-native-safe-area-context',
   () => require('react-native-safe-area-context/jest/mock').default,
 );
+
+const mockUser = {
+  uid: 'jarvis_user_id',
+  email: 'jarvis@example.com',
+  displayName: 'Jarvis Master',
+  photoURL: null,
+  isAnonymous: false,
+};
+
+jest.mock('../src/auth/AuthContext', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+  useAuth: () => ({
+    user: mockUser,
+    isLoading: false,
+    signInWithGoogle: jest.fn(),
+    signInGuest: jest.fn(),
+    signOut: jest.fn(),
+  }),
+}));
+
 const mockSetToolHandlers = jest.fn();
 const mockStopSession = jest.fn();
 const mockStartSession = jest.fn();
@@ -162,6 +182,8 @@ test('saves amount and category corrections to the existing document', async () 
     originalCategory: 'Food',
     note: '',
     updatedAt: 'SERVER_TIMESTAMP',
+    userId: 'jarvis_user_id',
+    ledgerId: 'jarvis_user_id',
   });
 });
 
@@ -208,6 +230,8 @@ test('parses and persists custom note on expenses', async () => {
     originalCategory: 'Food',
     note: 'Updated dinner note',
     updatedAt: 'SERVER_TIMESTAMP',
+    userId: 'jarvis_user_id',
+    ledgerId: 'jarvis_user_id',
   });
 });
 

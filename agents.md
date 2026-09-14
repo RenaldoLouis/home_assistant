@@ -35,7 +35,7 @@ The goal is to provide voice-controlled home automation, real-time banking expen
 3. **Android First**: Prioritize Android-specific implementations, as cross-platform compatibility is not a strict requirement.
 4. **Gemini API**: Ensure that the Gemini API is implemented using the official `@google/generative-ai` SDK with `tools` (function calling) configured.
 5. **Permissions Handling**: When dealing with Bluetooth/BLE, handle Android permissions (`BLUETOOTH_CONNECT`, `BLUETOOTH_SCAN`, `ACCESS_FINE_LOCATION`) carefully, as Android 12+ requires explicit runtime permissions.
-6. **UI Design**: Keep the UI minimal and functional; the primary interaction paradigm is voice. BUT — every visual element must be crafted with care. Minimal does not mean ugly. See the **Design & Animation Discipline** section below.
+6. **UI Design & Theme Discipline**: The app strictly follows a **Warm Linen & Botanical Editorial** design system: `#F5F4F0` warm linen canvas, deep botanical teal (`#176B61`) accent, `#E4EFE8` mint highlights, `#FFFFFF` cards with `#E8E8E1` borders, and serif title typography (`fontFamily: 'serif'`). **NEVER** use dark obsidian, tech neon blue, or generic dark modes — every screen (including Login, Onboarding, and Settings) must feel warm, calm, and editorial. See [JarvisAssistant/docs/design-system.md](JarvisAssistant/docs/design-system.md).
 7. **Senior Developer Standards**: You must develop with absolute accuracy and efficiency like a professional Senior Full Stack Developer. Actively question, verify, and validate every requirement before writing code. Do not blindly accept instructions if they contradict best practices or project rules. Use the provided agent skills (like `tdd`, `grill-me`, and `code-review`) to ensure code quality is top-tier.
 
 ---
@@ -365,6 +365,16 @@ Stats: 23 obs (6,319t read) | 364,986t work | 98% savings
   - Scaled across all mipmap densities (mdpi, hdpi, xhdpi, xxhdpi, xxxhdpi) for adaptive foreground and legacy fallbacks
   - Updated in-app branding logo `app_logo.png` (512x512) and `ic_launcher_background` (`#050D1A`)
   - Successfully compiled fresh release APK (`assembleRelease`, 80.5MB)
+2806 10:30a 🟣 Phase 2: Google Sign-In & Multi-Tenant Scoped Firestore Architecture
+  - Integrated `@react-native-firebase/auth@26.1.0` (Modular API) and `@react-native-google-signin/google-signin`
+  - Created `authService.ts`: Native Google Sign-In with credential exchange, anonymous guest fallback, sign-out, auth state observer (`onAuthStateChanged`), and `getActiveUserId()` helper
+  - Created `AuthContext.tsx`: Full React context provider and `useAuth` hook managing user lifecycle and login methods
+  - Built `LoginScreen.tsx`: Obsidian dark theme `#050D1A`, Arc-Reactor cyan emblem, Google Sign-In button, and "Continue as Guest (Offline)" fallback
+  - Updated `DashboardScreen.tsx`: Added user profile chip in header and Account & Security card in Settings sheet with Sign Out and Phase 2 Couple Sharing teaser
+  - Scoped expense persistence from flat `/expenses` to `/users/{userId}/expenses` with `userId` and `ledgerId` injected across foreground writes and background `headlessTask.js`
+  - Created `firestore.rules`: Strict `isOwner(userId)` access control (`request.auth.uid == userId`), validation rules, and future-proof `/households/{householdId}` rules for Couple/Household shared spending
+  - Updated test suite: Added unit tests `authService.test.ts`, `AuthContext.test.tsx`, `LoginScreen.test.tsx`, and updated `App.test.tsx` (14 suites, 87 unit tests passing, zero TypeScript errors)
+  - Built fresh release APK (`assembleRelease`, 78MB) signed with `jarvis.keystore`
 
 
 

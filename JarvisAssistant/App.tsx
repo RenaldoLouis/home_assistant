@@ -15,6 +15,7 @@ import {
   Text,
   View,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import RNAndroidNotificationListener from 'react-native-android-notification-listener';
 import {
@@ -33,6 +34,9 @@ import { buildDayReport } from './src/expenses/expenseSummary';
 import { normalizeDate, parseDay, dayKey } from './src/expenses/dates';
 import { buildExpenseUpdate } from './src/expenses/expenseEditing';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Colors } from './src/theme/colors';
+import { AuthProvider, useAuth } from './src/auth/AuthContext';
+import { LoginScreen } from './src/auth/LoginScreen';
 import {
   buildExpenseCategoryOptions,
   normalizeExpenseCategory,
@@ -90,7 +94,11 @@ class ErrorBoundary extends Component<
   }
 }
 
-export default function App() {
+function JarvisMainContent() {
+  const { user, isLoading: isAuthLoading, signOut } = useAuth();
+  const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
+  const activeUserId = user ? user.uid : JARVIS_USER_ID;
+
   const [isRecordingCommand, setIsRecordingCommand] = useState(false);
   const [commandText, setCommandText] = useState('');
   const [orbState, setOrbState] = useState<OrbState>('idle');
@@ -203,7 +211,7 @@ export default function App() {
         }
         try {
           const expenseRef = doc(
-            collection(getFirestore(), 'users', JARVIS_USER_ID, 'expenses'),
+            collection(getFirestore(), 'users', activeUserId, 'expenses'),
             expense_id,
           );
           await updateDoc(expenseRef, updateData);
@@ -226,7 +234,7 @@ export default function App() {
       onDeleteExpense: async ({ expense_id }) => {
         try {
           const expenseRef = doc(
-            collection(getFirestore(), 'users', JARVIS_USER_ID, 'expenses'),
+            collection(getFirestore(), 'users', activeUserId, 'expenses'),
             expense_id,
           );
           await deleteDoc(expenseRef);
@@ -480,7 +488,7 @@ export default function App() {
     try {
       setDataStatus('loading');
       const db = getFirestore();
-      const expensesRef = collection(db, 'users', JARVIS_USER_ID, 'expenses');
+      const expensesRef = collection(db, 'users', activeUserId, 'expenses');
 
       unsubscribe = onSnapshot(
         expensesRef,
@@ -518,7 +526,7 @@ export default function App() {
     return () => {
       unsubscribe?.();
     };
-  }, [subscriptionVersion]);
+  }, [subscriptionVersion, activeUserId]);
 
   const categoryOptions = useMemo(
     () =>
@@ -535,12 +543,14 @@ export default function App() {
         );
       const update = buildExpenseUpdate(expense, edit);
       const expenseRef = doc(
-        collection(getFirestore(), 'users', JARVIS_USER_ID, 'expenses'),
+        collection(getFirestore(), 'users', activeUserId, 'expenses'),
         expenseId,
       );
       try {
         await updateDoc(expenseRef, {
           ...update,
+          userId: activeUserId,
+          ledgerId: activeUserId,
           updatedAt: serverTimestamp(),
         });
         setFailedSave(previous =>
@@ -551,13 +561,13 @@ export default function App() {
         throw error;
       }
     },
-    [expenses],
+    [expenses, activeUserId],
   );
 
   const handleExpenseDelete = useCallback(
     async (expenseId: string) => {
       const expenseRef = doc(
-        collection(getFirestore(), 'users', JARVIS_USER_ID, 'expenses'),
+        collection(getFirestore(), 'users', activeUserId, 'expenses'),
         expenseId,
       );
       try {
@@ -568,40 +578,70 @@ export default function App() {
         throw error;
       }
     },
-    [],
+    [activeUserId],
   );
 
+  if (isAuthLoading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: Colors.background,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <ActivityIndicator size="large" color={Colors.accent} />
+      </View>
+    );
+  }
+
+  if (!user && !isGuestMode) {
+    return <LoginScreen onContinueAsGuest={() => setIsGuestMode(true)} />;
+  }
+
+  return (
+    <DashboardScreen
+      isRecordingCommand={isRecordingCommand}
+      commandText={commandText}
+      orbState={orbState}
+      startListening={startListening}
+      stopListening={stopListening}
+      dataStatus={dataStatus}
+      onRetry={() => setSubscriptionVersion(value => value + 1)}
+      notifPermission={notifPermission}
+      showNotifModal={showNotifModal}
+      setShowNotifModal={setShowNotifModal}
+      onRequestNotifPermission={() => {
+        RNAndroidNotificationListener.requestPermission();
+      }}
+      dailyNotes={dailyNotes}
+      setDailyNotes={setDailyNotes}
+      expenses={expenses}
+      categoryOptions={categoryOptions}
+      onExpenseSave={handleExpenseSave}
+      onExpenseDelete={handleExpenseDelete}
+      onStartDailyReview={startDailyReview}
+      saveFailed={failedSave !== null}
+      onRetrySave={() => {
+        if (failedSave)
+          handleExpenseSave(failedSave.id, failedSave.edit).catch(() => {});
+      }}
+      onDismissSaveError={() => setFailedSave(null)}
+      user={user}
+      onSignOut={signOut}
+      onSignInRequest={() => setIsGuestMode(false)}
+    />
+  );
+}
+
+export default function App(): React.JSX.Element {
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
-        <DashboardScreen
-          isRecordingCommand={isRecordingCommand}
-          commandText={commandText}
-          orbState={orbState}
-          startListening={startListening}
-          stopListening={stopListening}
-          dataStatus={dataStatus}
-          onRetry={() => setSubscriptionVersion(value => value + 1)}
-          notifPermission={notifPermission}
-          showNotifModal={showNotifModal}
-          setShowNotifModal={setShowNotifModal}
-          onRequestNotifPermission={() => {
-            RNAndroidNotificationListener.requestPermission();
-          }}
-          dailyNotes={dailyNotes}
-          setDailyNotes={setDailyNotes}
-          expenses={expenses}
-          categoryOptions={categoryOptions}
-          onExpenseSave={handleExpenseSave}
-          onExpenseDelete={handleExpenseDelete}
-          onStartDailyReview={startDailyReview}
-          saveFailed={failedSave !== null}
-          onRetrySave={() => {
-            if (failedSave)
-              handleExpenseSave(failedSave.id, failedSave.edit).catch(() => {});
-          }}
-          onDismissSaveError={() => setFailedSave(null)}
-        />
+        <AuthProvider>
+          <JarvisMainContent />
+        </AuthProvider>
       </SafeAreaProvider>
     </ErrorBoundary>
   );
