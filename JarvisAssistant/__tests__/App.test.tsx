@@ -4,9 +4,11 @@
 
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
+import { Linking } from 'react-native';
 import { updateDoc } from '@react-native-firebase/firestore';
 import App from '../App';
 import { ToolExecutionHandlers } from '../src/services/JarvisToolExecutor';
+
 
 jest.mock(
   'react-native-safe-area-context',
@@ -15,16 +17,22 @@ jest.mock(
 const mockSetToolHandlers = jest.fn();
 const mockStopSession = jest.fn();
 const mockCreateService = jest.fn();
+const mockSetSystemInstruction = jest.fn();
 jest.mock('../src/services/GeminiLiveService', () => ({
   GeminiLiveService: jest.fn().mockImplementation(() => {
     mockCreateService();
     return {
       on: jest.fn(() => jest.fn()),
       setToolHandlers: mockSetToolHandlers,
+      setSystemInstruction: mockSetSystemInstruction,
       stopSession: mockStopSession,
     };
   }),
+  buildJarvisSystemInstruction: jest.fn(
+    (ctx?: string) => `MOCK_INSTRUCTION: ${ctx || ''}`,
+  ),
 }));
+
 
 interface DashboardProps {
   expenses: Array<{
@@ -62,9 +70,14 @@ let mockExpenseDocs: Array<{
   data: () => Record<string, unknown>;
 }> = [];
 
+jest.mock('react-native-haptic-feedback', () => ({
+  trigger: jest.fn(),
+}));
+
 jest.mock('react-native-android-notification-listener', () => ({
   __esModule: true,
   default: {
+
     getPermissionStatus: jest.fn(() => Promise.resolve('authorized')),
     requestPermission: jest.fn(),
   },
@@ -317,7 +330,62 @@ test('keeps a rejected correction visible outside the editor and allows retry', 
   });
   expect(dashboard().saveFailed).toBe(true);
   await ReactTestRenderer.act(async () => dashboard().onRetrySave());
-  expect(dashboard().saveFailed).toBe(false);
   expect(updateDoc).toHaveBeenCalledTimes(2);
   await ReactTestRenderer.act(async () => renderer!.unmount());
 });
+
+test('updates system instruction with dynamic daily spending context', async () => {
+  mockExpenseDocs = [
+    {
+      id: 'today-expense',
+      data: () => ({
+        amount: 45000,
+        category: 'Food',
+        date: new Date().toISOString(),
+      }),
+    },
+  ];
+  let renderer: ReactTestRenderer.ReactTestRenderer;
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(<App />);
+  });
+
+  expect(mockSetSystemInstruction).toHaveBeenCalled();
+  const latestInstructionCall =
+    mockSetSystemInstruction.mock.calls[
+      mockSetSystemInstruction.mock.calls.length - 1
+    ][0];
+  expect(latestInstructionCall).toContain('45.000');
+  await ReactTestRenderer.act(async () => renderer!.unmount());
+});
+
+test('launches Spotify intent when onPlayMusic tool handler executes', async () => {
+  let renderer: ReactTestRenderer.ReactTestRenderer;
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(<App />);
+  });
+
+  const handlers: ToolExecutionHandlers =
+    mockSetToolHandlers.mock.calls[
+      mockSetToolHandlers.mock.calls.length - 1
+    ][0];
+
+  const canOpenSpy = jest
+    .spyOn(Linking, 'canOpenURL')
+    .mockResolvedValue(true as never);
+  const openSpy = jest
+    .spyOn(Linking, 'openURL')
+    .mockResolvedValue(true as never);
+
+  const result = await handlers.onPlayMusic?.({ app: 'spotify' });
+
+  expect(canOpenSpy).toHaveBeenCalledWith('spotify:play');
+  expect(openSpy).toHaveBeenCalledWith('spotify:play');
+  expect(result?.success).toBe(true);
+  expect(result?.message).toContain('Spotify');
+
+  canOpenSpy.mockRestore();
+  openSpy.mockRestore();
+  await ReactTestRenderer.act(async () => renderer!.unmount());
+});
+

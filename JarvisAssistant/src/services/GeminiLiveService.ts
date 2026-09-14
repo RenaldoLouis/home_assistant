@@ -28,6 +28,30 @@ export interface GeminiLiveOptions {
   toolHandlers?: ToolExecutionHandlers;
 }
 
+export function buildJarvisSystemInstruction(spendingContext?: string): string {
+  const sections: string[] = [
+    'You are Jarvis, a personal AI home assistant. Keep responses natural, direct, concise, and friendly.',
+    'VOICE & SPEED RULES:',
+    '- Answer in ONE short, natural sentence (maximum 25 words). Never use lists or preamble.',
+    '- If asked to play music or songs, call play_music with app="spotify" immediately.',
+    '- If asked to turn lights or lamp on or off, call control_light immediately.',
+  ];
+
+  if (spendingContext && spendingContext.trim()) {
+    sections.push(
+      'DAILY SPENDING CONTEXT:',
+      spendingContext.trim(),
+      'CRITICAL: When asked how much the user spent today or about today\'s expenses, answer directly in one sentence using the figures above. DO NOT call get_daily_recap unless the user explicitly asks for another date.',
+    );
+  } else {
+    sections.push(
+      'If asked about daily spending and no context is given, call get_daily_recap immediately.',
+    );
+  }
+
+  return sections.join('\n');
+}
+
 type EventCallback<T = unknown> = (data: T) => void;
 
 export class GeminiLiveService {
@@ -48,8 +72,7 @@ export class GeminiLiveService {
     this.model = options.model || Config.GEMINI_LIVE_MODEL;
     this.voiceName = options.voiceName || Config.GEMINI_LIVE_VOICE;
     this.systemInstruction =
-      options.systemInstruction ||
-      'You are Jarvis, a personal AI home assistant. Keep responses natural, direct, concise, and friendly. Execute tools when asked.';
+      options.systemInstruction || buildJarvisSystemInstruction();
     this.toolHandlers = options.toolHandlers;
 
     if (NativeModules.LiveAudioModule) {
@@ -57,9 +80,14 @@ export class GeminiLiveService {
     }
   }
 
+  public setSystemInstruction(instruction: string) {
+    this.systemInstruction = instruction;
+  }
+
   public setToolHandlers(handlers: ToolExecutionHandlers) {
     this.toolHandlers = handlers;
   }
+
 
   public getStatus(): LiveSessionStatus {
     return this.status;

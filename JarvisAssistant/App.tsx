@@ -41,12 +41,15 @@ import {
   ExpenseEdit,
   TransactionType,
 } from './src/expenses/types';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import {
   GeminiLiveService,
   LiveSessionStatus,
   TranscriptEvent,
+  buildJarvisSystemInstruction,
 } from './src/services/GeminiLiveService';
 import { ToolExecutionHandlers } from './src/services/JarvisToolExecutor';
+
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -134,11 +137,36 @@ export default function App() {
         )} across ${report.expenseCount} expenses${incomePart}${actualPart}.`;
 
       },
-      onPlayMusic: async () => ({
-        success: false,
-        message:
-          'Your speaker has not arrived yet. Music control is not connected.',
-      }),
+      onPlayMusic: async () => {
+        try {
+          const spotifyPlayUrl = 'spotify:play';
+          const canPlay = await Linking.canOpenURL(spotifyPlayUrl);
+          if (canPlay) {
+            await Linking.openURL(spotifyPlayUrl);
+            return {
+              success: true,
+              message: 'Connecting to your speaker and playing music on Spotify.',
+            };
+          }
+          const spotifyUrl = 'spotify:';
+          if (await Linking.canOpenURL(spotifyUrl)) {
+            await Linking.openURL(spotifyUrl);
+            return {
+              success: true,
+              message: 'Opening Spotify to play your music.',
+            };
+          }
+          return {
+            success: false,
+            message: 'Spotify is not installed on this device.',
+          };
+        } catch {
+          return {
+            success: false,
+            message: 'Failed to launch Spotify.',
+          };
+        }
+      },
       onControlLight: async () => ({
         success: false,
         message:
@@ -147,6 +175,34 @@ export default function App() {
     }),
     [expenses, dataStatus],
   );
+
+  const spendingContext = useMemo(() => {
+    const todayReport = buildDayReport(expenses, new Date());
+    return `Today (${dayKey(new Date())}): IDR ${todayReport.total.toLocaleString(
+      'id-ID',
+    )} spent across ${todayReport.expenseCount} expenses${
+      todayReport.incomeTotal > 0
+        ? `, IDR ${todayReport.incomeTotal.toLocaleString(
+            'id-ID',
+          )} received in income (actual spend: IDR ${todayReport.netSpend.toLocaleString(
+            'id-ID',
+          )})`
+        : ''
+    }.`;
+  }, [expenses]);
+
+  const triggerHaptic = (
+    style: 'impactLight' | 'selection' = 'impactLight',
+  ) => {
+    try {
+      ReactNativeHapticFeedback?.trigger?.(style, {
+        enableVibrateFallback: true,
+        ignoreAndroidSystemSettings: false,
+      });
+    } catch {
+      // Haptics optional fallback
+    }
+  };
 
   useEffect(() => {
     const liveService = new GeminiLiveService({});
@@ -157,6 +213,7 @@ export default function App() {
       (status: LiveSessionStatus) => {
         console.log('[Jarvis App] Live status changed to:', status);
         if (status === 'listening') {
+          triggerHaptic('selection');
           setOrbState('listening');
           setIsRecordingCommand(true);
           setCommandText(prev =>
@@ -165,6 +222,7 @@ export default function App() {
               : 'Listening...',
           );
         } else if (status === 'speaking') {
+          triggerHaptic('impactLight');
           setOrbState('speaking');
           setIsRecordingCommand(true);
         } else if (status === 'idle' || status === 'disconnected') {
@@ -204,8 +262,15 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    liveServiceRef.current?.setSystemInstruction(
+      buildJarvisSystemInstruction(spendingContext),
+    );
+  }, [spendingContext]);
+
+  useEffect(() => {
     liveServiceRef.current?.setToolHandlers(toolHandlers);
   }, [toolHandlers]);
+
 
   // Request Android audio recording permission
   const requestAudioPermission = useCallback(async () => {

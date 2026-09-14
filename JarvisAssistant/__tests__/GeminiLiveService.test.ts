@@ -1,5 +1,9 @@
 import { NativeModules } from 'react-native';
-import { GeminiLiveService } from '../src/services/GeminiLiveService';
+import {
+  GeminiLiveService,
+  buildJarvisSystemInstruction,
+} from '../src/services/GeminiLiveService';
+
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
@@ -69,6 +73,30 @@ describe('GeminiLiveService', () => {
   afterEach(() => {
     service.stopSession();
   });
+
+  it('builds system instructions with dynamic spending context to avoid tool round-trip', () => {
+    const defaultInstruction = buildJarvisSystemInstruction();
+    expect(defaultInstruction).toContain('play_music');
+    expect(defaultInstruction).toContain('control_light');
+
+    const withContext = buildJarvisSystemInstruction('Today: IDR 50.000 spent');
+    expect(withContext).toContain('DAILY SPENDING CONTEXT:');
+    expect(withContext).toContain('Today: IDR 50.000 spent');
+    expect(withContext).toContain('DO NOT call get_daily_recap');
+  });
+
+  it('allows updating system instructions dynamically before starting session', async () => {
+    service.setSystemInstruction('Custom instructions for testing');
+    await service.startSession();
+    await new Promise<void>(resolve => setTimeout(resolve, 10));
+
+    const ws = MockWebSocket.instances[0];
+    const setupMsg = JSON.parse(ws.sentMessages[0]);
+    expect(setupMsg.setup.systemInstruction.parts[0].text).toBe(
+      'Custom instructions for testing',
+    );
+  });
+
 
   it('connects to WebSocket and sends setup payload on open', async () => {
     await service.startSession();
