@@ -2,7 +2,9 @@
 
 ## Context
 This project is a React Native (Android) application that serves as a DIY personal smart assistant.
-The goal is to provide voice-controlled home automation and media playback using an Android phone, without relying on expensive, proprietary smart home hubs. 
+The goal is to provide voice-controlled home automation, real-time banking expense tracking, and conversational intelligence using an Android phone, without relying on expensive, proprietary smart home hubs. 
+
+> **Detailed Architecture & Subsystems Documentation**: See [JarvisAssistant/docs/architecture-and-system-overview.md](JarvisAssistant/docs/architecture-and-system-overview.md) for full diagrams, data flow specifications, directory maps, and AI tool execution protocols. 
 
 ## Tech Stack
 - **Framework**: React Native (Targeting Android exclusively for now, Bare Workflow recommended over Expo for native Bluetooth/Audio control)
@@ -29,7 +31,7 @@ The goal is to provide voice-controlled home automation and media playback using
 
 **Core Rules**:
 1. **Strict Privacy & Zero Data Leak**: Prioritize safety above absolutely everything. The app must be 100% safe security-wise and must NEVER leak any personal data from the phone. Minimize the use of third-party libraries; rely on trusted first-party APIs (like standard Android APIs or official Google SDKs) to ensure data never goes to untrusted third parties.
-2. **Documentation Driven**: Every implementation decision must be backed by official documentation. When building a new feature or system, you must proactively create internal documentation for it so the project remains structured and understandable.
+2. **Documentation Driven & Mandatory Living Log**: Every implementation decision must be backed by official documentation. When building a new feature or system, you must proactively create internal documentation for it so the project remains structured and understandable. **MANDATORY**: You must ALWAYS document what was done (features, bugfixes, tool additions, architectural updates) directly in `agents.md` under the **Implementation Log / Context History** at the completion of every task, so you and future agents retain continuous memory and context across sessions.
 3. **Android First**: Prioritize Android-specific implementations, as cross-platform compatibility is not a strict requirement.
 4. **Gemini API**: Ensure that the Gemini API is implemented using the official `@google/generative-ai` SDK with `tools` (function calling) configured.
 5. **Permissions Handling**: When dealing with Bluetooth/BLE, handle Android permissions (`BLUETOOTH_CONNECT`, `BLUETOOTH_SCAN`, `ACCESS_FINE_LOCATION`) carefully, as Android 12+ requires explicit runtime permissions.
@@ -336,6 +338,22 @@ Stats: 23 obs (6,319t read) | 364,986t work | 98% savings
 2761 " ✅ Improved error boundary messaging in App component
 2762 " ✅ Test suite fixes and typescript type corrections
 2763 " ✅ Android release APK build prepared with Gradle
+### Sep 14, 2026
+2801 06:45a 🟣 Expense Deletion with In-Modal Confirmation
+  - Added delete button in `ExpenseEditor.tsx` with dedicated confirmation prompt modal
+  - Connected `deleteDoc` in `App.tsx` with Firestore persistence and haptic feedback
+  - Added `delete_expense` tool declaration and execution handler in `JarvisToolExecutor.ts`
+2802 06:45a 🔴 Income Category & Type Synchronization Bugfix
+  - Fixed category "Income" remaining stuck as an expense in `expenseEditing.ts` and `ExpenseEditor.tsx`
+  - Added interactive Segmented Type Switcher (`Expense` / `Income (+)`) in `ExpenseEditor.tsx`
+  - Added fallback in `toEditableExpense` (`App.tsx`) to normalize records with category "Income" to `type: 'income'`
+  - Fixed positive amount prefix (`+Rp ...`) and green badge rendering on dashboard
+2803 06:45a 🟣 End-of-Day 1-by-1 AI Spending Review (Gemini Live)
+  - Added `update_expense`, `delete_expense`, and `get_daily_expenses` tools to `JarvisToolExecutor.ts`
+  - Injected itemized transaction context (IDs, times, amounts, merchants, banks, categories, notes) into `spendingContext`
+  - Configured 1-by-1 conversational review instructions in `buildJarvisSystemInstruction` (`GeminiLiveService.ts`)
+  - Added `sendTextMessage` in `GeminiLiveService.ts` for client content turn injection
+  - Added dashboard triggers: "Review with Jarvis" spark chip on dashboard and "Review today's spending 1-by-1" in Voice Sheet
 
 Access 365k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
