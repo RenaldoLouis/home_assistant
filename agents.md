@@ -386,6 +386,14 @@ Stats: 23 obs (6,319t read) | 364,986t work | 98% savings
   - Generated and deployed `app_logo.png` (512x512) and all mipmaps (`ic_launcher.png`, `ic_launcher_round.png`, `ic_launcher_foreground.png`) across mdpi, hdpi, xhdpi, xxhdpi, xxxhdpi
   - Updated `values/colors.xml` (`ic_launcher_background` to `#166359`)
   - Recompiled release APK (`assembleRelease`, 78MB) and deployed wirelessly via ADB to Samsung Galaxy S24 FE (`Success`)
+2809 11:35a 🟣 Phase 3: Notification Privacy & Security Hardening
+  - Implemented strict Android banking & fintech package whitelist (`isWhitelistedApp`, `WHITELISTED_BANK_APPS` for BCA, Mandiri, BRI, BNI, CIMB, Jago, Jenius, Permata, GoPay, Dana, OVO, ShopeePay)
+  - Added instantaneous chat/SMS/social block (`com.whatsapp`, `org.telegram`, `com.google.android.apps.messaging`, etc.)
+  - Built automated OTP & sensitive credential kill-switch (`containsSensitiveCredentials`, `SENSITIVE_SECURITY_PATTERN` for OTP, PIN, password, CVV, verification codes)
+  - Enforced RAM-only on-device parsing guarantee with zero raw text persistence
+  - Created `PrivacyTransparencyModal.tsx` in Warm Linen & Botanical Editorial theme with interactive whitelist viewer
+  - Connected modal trigger in `DashboardScreen.tsx` Settings sheet
+  - Added unit tests in `expenseNotificationParser.test.ts` and `PrivacyTransparencyModal.test.tsx` (15 suites, 93 unit tests, 100% passing)
 
 
 

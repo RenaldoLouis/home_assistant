@@ -42,11 +42,83 @@ const TEXT_FIELD_ORDER = [
   'android.infoText',
 ];
 
+export interface WhitelistedAppInfo {
+  packageName: string;
+  name: string;
+  category: 'bank' | 'ewallet';
+}
+
+export const WHITELISTED_BANK_APPS: WhitelistedAppInfo[] = [
+  // BCA
+  { packageName: 'com.bca', name: 'BCA', category: 'bank' },
+  { packageName: 'id.co.bca', name: 'BCA', category: 'bank' },
+  { packageName: 'id.co.bca.mybca', name: 'BCA', category: 'bank' },
+  { packageName: 'com.bca.mybca.omni.android', name: 'BCA', category: 'bank' },
+  // Mandiri
+  { packageName: 'id.co.bankmandiri.livin', name: 'Mandiri', category: 'bank' },
+  { packageName: 'id.co.mandiri.livin', name: 'Mandiri', category: 'bank' },
+  { packageName: 'com.bankmandiri.mandirionline', name: 'Mandiri', category: 'bank' },
+  // BRI
+  { packageName: 'id.co.bri.brimo', name: 'BRI', category: 'bank' },
+  // BNI
+  { packageName: 'id.co.bni.papamobile', name: 'BNI', category: 'bank' },
+  { packageName: 'src.com.bni', name: 'BNI', category: 'bank' },
+  // CIMB Niaga
+  { packageName: 'id.co.cimbniaga.octomobile', name: 'CIMB Niaga', category: 'bank' },
+  // Bank Jago
+  { packageName: 'com.jago.app', name: 'Bank Jago', category: 'bank' },
+  // Jenius / BTPN
+  { packageName: 'com.btpn.dc', name: 'Jenius', category: 'bank' },
+  { packageName: 'com.btpn.jenius', name: 'Jenius', category: 'bank' },
+  // Permata
+  { packageName: 'id.co.permatabank.mobile', name: 'PermataBank', category: 'bank' },
+  // GoPay / Gojek
+  { packageName: 'com.gojek.app', name: 'GoPay', category: 'ewallet' },
+  { packageName: 'com.gopay.wallet', name: 'GoPay', category: 'ewallet' },
+  // Dana
+  { packageName: 'id.dana', name: 'Dana', category: 'ewallet' },
+  // OVO
+  { packageName: 'id.ovo.app', name: 'OVO', category: 'ewallet' },
+  // ShopeePay
+  { packageName: 'com.shopee.id', name: 'ShopeePay', category: 'ewallet' },
+];
+
+const BLOCKED_PACKAGES_PATTERN =
+  /\b(?:whatsapp|telegram|signal|securesms|messaging|mms|sms|instagram|facebook|twitter|threads|tiktok|gmail|mail|outlook)\b/i;
+
+export const SENSITIVE_SECURITY_PATTERN =
+  /\b(?:otp|one[- ]time\s+password|kode\s+verifikasi|verification\s+code|kata\s+sandi|password|pin|cvv|cvc|rahasia|security\s+code|auth\s+code|jangan\s+beritahu\s+siapapun|jangan\s+berikan\s+kode|do\s+not\s+share)\b/i;
+
 const TARGET_TITLE_PATTERN = /\b(?:financial\s+diary|my\s+financial)\b/i;
-const KNOWN_BANK_APP_PATTERN = /\b(?:bca|mybca|mandiri|bni|bri)\b/i;
 const IDR_AMOUNT_PATTERN = /\b(?:IDR|Rp\.?)\s*([0-9][0-9.,]*)/i;
 const EARNING_PATTERN = /\b(?:rdn\s+earning|earning)\b/i;
 const INCOME_PATTERN = /\b(?:you\s+received|anda\s+menerima|received|menerima)\b/i;
+
+export function isWhitelistedApp(sourceApp: string): boolean {
+  if (!sourceApp) {
+    return false;
+  }
+  const normalized = sourceApp.trim().toLowerCase();
+
+  // Instant block on chat, SMS, social, and email packages
+  if (BLOCKED_PACKAGES_PATTERN.test(normalized)) {
+    return false;
+  }
+
+  return WHITELISTED_BANK_APPS.some(
+    app =>
+      normalized === app.packageName.toLowerCase() ||
+      normalized.startsWith(app.packageName.toLowerCase() + '.') ||
+      normalized.includes(app.packageName.toLowerCase()),
+  );
+}
+
+export function containsSensitiveCredentials(text: string): boolean {
+  if (!text) {
+    return false;
+  }
+  return SENSITIVE_SECURITY_PATTERN.test(text);
+}
 
 export function parseExpenseNotification(
   rawNotification: unknown,
@@ -61,10 +133,25 @@ export function parseExpenseNotification(
   const sourceTitle = firstText(payload.title, payload.titleBig, payload['android.title']);
   const notificationText = resolveNotificationText(payload);
 
+  // 1. Strict Whitelist Check: Reject non-banking and chat apps immediately
+  if (!isWhitelistedApp(sourceApp)) {
+    return null;
+  }
+
+  // 2. Candidate Title Check: Must be a financial tracking notification
   if (!isFinancialDiaryCandidate(sourceApp, sourceTitle)) {
     return null;
   }
 
+  // 3. Sensitive Security Kill-Switch: Immediate abort if OTP/PIN/Password is present
+  if (
+    containsSensitiveCredentials(notificationText) ||
+    containsSensitiveCredentials(sourceTitle)
+  ) {
+    return null;
+  }
+
+  // 4. Exclude investment earnings
   if (EARNING_PATTERN.test(notificationText)) {
     return null;
   }
@@ -223,30 +310,38 @@ function toText(value: unknown): string {
   return '';
 }
 
-function isFinancialDiaryCandidate(sourceApp: string, sourceTitle: string): boolean {
-  return (
-    TARGET_TITLE_PATTERN.test(sourceTitle) ||
-    (KNOWN_BANK_APP_PATTERN.test(sourceApp) && TARGET_TITLE_PATTERN.test(sourceTitle))
-  );
+function isFinancialDiaryCandidate(_sourceApp: string, sourceTitle: string): boolean {
+  return TARGET_TITLE_PATTERN.test(sourceTitle);
 }
 
 function inferBank(sourceApp: string, sourceTitle: string): string {
+  const normalizedApp = sourceApp.trim().toLowerCase();
+  const matchedApp = WHITELISTED_BANK_APPS.find(
+    app =>
+      normalizedApp === app.packageName.toLowerCase() ||
+      normalizedApp.startsWith(app.packageName.toLowerCase() + '.') ||
+      normalizedApp.includes(app.packageName.toLowerCase()),
+  );
+
+  if (matchedApp) {
+    return matchedApp.name;
+  }
+
   const appAndTitle = `${sourceApp} ${sourceTitle}`.toLowerCase();
+  if (appAndTitle.includes('bca')) return 'BCA';
+  if (appAndTitle.includes('mandiri')) return 'Mandiri';
+  if (appAndTitle.includes('bni')) return 'BNI';
+  if (appAndTitle.includes('bri')) return 'BRI';
+  if (appAndTitle.includes('cimb')) return 'CIMB Niaga';
+  if (appAndTitle.includes('jago')) return 'Bank Jago';
+  if (appAndTitle.includes('jenius')) return 'Jenius';
+  if (appAndTitle.includes('gojek') || appAndTitle.includes('gopay')) return 'GoPay';
+  if (appAndTitle.includes('dana')) return 'Dana';
+  if (appAndTitle.includes('ovo')) return 'OVO';
+  if (appAndTitle.includes('shopee')) return 'ShopeePay';
 
-  if (appAndTitle.includes('bca') || TARGET_TITLE_PATTERN.test(sourceTitle)) {
+  if (TARGET_TITLE_PATTERN.test(sourceTitle)) {
     return 'BCA';
-  }
-
-  if (appAndTitle.includes('mandiri')) {
-    return 'Mandiri';
-  }
-
-  if (appAndTitle.includes('bni')) {
-    return 'BNI';
-  }
-
-  if (appAndTitle.includes('bri')) {
-    return 'BRI';
   }
 
   return 'Unknown';

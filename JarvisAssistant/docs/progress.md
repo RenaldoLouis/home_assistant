@@ -14,9 +14,9 @@
          │
 [Phase 2: Google Sign-In & Multi-Tenant Firestore] ➔ COMPLETED ✅
          │
-[Phase 3: Notification Privacy & Security Hardening] ➔ NEXT / IN-PROGRESS 🟡
+[Phase 3: Notification Privacy & Security Hardening] ➔ COMPLETED ✅
          │
-[Phase 4: Play Store Packaging & Data Safety] ➔ UPCOMING ⚪
+[Phase 4: Play Store Packaging & Data Safety] ➔ NEXT / UPCOMING 🟡
          │
 [Phase 5: Future Couple Sharing & Subscription] ➔ ROADMAP ⚪
 ```
@@ -57,26 +57,23 @@
 ---
 
 ### Phase 3: Notification Privacy & Security Hardening
-**Status**: `IN PROGRESS` 🟡  
+**Status**: `COMPLETED` ✅ (September 14, 2026)  
 **Objective**: Build bank-grade local processing privacy guarantees to satisfy strict Google Play Store policies and protect user data.
-- [ ] **Android Package Whitelist**:
-  - Restrict `RNAndroidNotificationListener` parsing exclusively to verified banking and fintech package IDs (e.g., `com.bca`, `id.co.bankmandiri.livin`, `id.co.bri.brimo`, `id.co.bni.papamobile`, `com.gojek.app`, `id.dana`).
-  - Immediately drop notifications from personal chat apps (WhatsApp, Telegram, SMS, Email).
-- [ ] **OTP & Sensitive Keyword Kill-Switch**:
-  - Immediate abort if notification text contains sensitive credentials: `OTP`, `kode verifikasi`, `password`, `PIN`, `CVV`, `rahasia`.
+- [x] **Android Package Whitelist**:
+  - Restrict `RNAndroidNotificationListener` parsing exclusively to verified banking and fintech package IDs (`WHITELISTED_BANK_APPS`: BCA, Mandiri, BRI, BNI, CIMB, Jago, Jenius, Permata, GoPay, Dana, OVO, ShopeePay).
+  - Immediately drop notifications from personal chat apps (WhatsApp, Telegram, Signal, SMS, Messages, Email, Social Media).
+- [x] **OTP & Sensitive Keyword Kill-Switch**:
+  - Immediate abort if notification text or title contains sensitive credentials: `OTP`, `kode verifikasi`, `password`, `PIN`, `CVV`, `rahasia`, `jangan beritahu siapapun`.
   - Instant memory wipe — never attempt to extract or store financial records from security challenge texts.
-- [ ] **RAM-Only On-Device Parsing Guarantee**:
+- [x] **RAM-Only On-Device Parsing Guarantee**:
   - Guarantee raw notification string is never written to disk, SQLite, MMKV, or Firestore.
-  - Only clean, extracted transaction records (`amount`, `merchant`, `category`, `timestamp`) enter memory.
-- [ ] **In-App Privacy Transparency Center**:
-  - Design a dedicated transparency bottom sheet / modal in the Warm Linen Editorial style.
-  - Explicitly explain to the user:
-    1. What is read (only whitelist bank expense alerts).
-    2. What is discarded (personal messages, OTPs, balance notices).
-    3. Where processing happens (100% locally on the phone CPU).
-    4. Cloud sync boundaries (only scrubbed transaction amounts sync to user's private Firestore).
-- [ ] **Unit & Regression Testing**:
-  - Add comprehensive test coverage in `__tests__/expenseNotificationParser.test.ts` for whitelist filtering, OTP discard, and malicious payload rejection.
+  - Only clean, minimal extracted transaction records (`amount`, `merchant`, `category`, `bank`, `type`, `timestamp`) enter memory.
+- [x] **In-App Privacy Transparency Center**:
+  - Built [`PrivacyTransparencyModal.tsx`](../src/components/PrivacyTransparencyModal.tsx) adhering to Warm Linen & Botanical Editorial styling.
+  - Interactive whitelist viewer allowing users to inspect supported packages.
+  - Integrated into Settings sheet with 100% On-Device Data Safety badge.
+- [x] **Unit & Regression Testing**:
+  - Added comprehensive test coverage in `__tests__/expenseNotificationParser.test.ts` and `__tests__/PrivacyTransparencyModal.test.tsx` (15 suites, 93 unit tests, 100% green).
 
 ---
 

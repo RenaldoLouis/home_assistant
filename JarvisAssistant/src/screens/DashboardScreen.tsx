@@ -17,6 +17,7 @@ import { ExpenseEditor } from '../components/ExpenseEditor';
 import { Icon, categoryAppearance } from '../components/Icon';
 import { Sheet } from '../components/Sheet';
 import { OrbState } from '../components/JarvisOrb';
+import { PrivacyTransparencyModal } from '../components/PrivacyTransparencyModal';
 import { addDays, dayKey, parseDay } from '../expenses/dates';
 import { buildDayReport } from '../expenses/expenseSummary';
 import { EditableExpense, ExpenseEdit } from '../expenses/types';
@@ -71,6 +72,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
   );
   const [editing, setEditing] = useState<EditableExpense | null>(null);
   const [rebindStatus, setRebindStatus] = useState<string | null>(null);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
   const handleRebindListener = async () => {
     try {
@@ -889,6 +891,58 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
             </View>
           )}
 
+          <AnimatedPressable
+            testID="open-privacy-transparency-center"
+            onPress={() => setShowPrivacyModal(true)}
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: '#E8E8E1',
+              padding: 14,
+              marginBottom: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+            }}
+            accessibilityLabel="Privacy and Transparency Center"
+          >
+            <View
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                backgroundColor: Colors.mint,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 18 }}>🛡️</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 13.5,
+                  fontWeight: '700',
+                  color: Colors.textPrimary,
+                }}
+              >
+                Privacy & Transparency Center
+              </Text>
+              <Text
+                style={{
+                  fontSize: 11.5,
+                  color: Colors.accent,
+                  fontWeight: '600',
+                  marginTop: 2,
+                }}
+              >
+                100% On-Device · Zero Data Leak
+              </Text>
+            </View>
+            <Icon name="chevronRight" size={16} color="#8B938B" />
+          </AnimatedPressable>
+
           <Text style={s.smallHeading}>Spending capture</Text>
           <Text style={s.deviceDescription}>
             {props.notifPermission === 'authorized'
@@ -990,6 +1044,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
           </AnimatedPressable>
         </Sheet>
       )}
+      <PrivacyTransparencyModal
+        visible={showPrivacyModal}
+        onClose={() => setShowPrivacyModal(false)}
+      />
     </SafeAreaView>
   );
 };

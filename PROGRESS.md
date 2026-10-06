@@ -12,8 +12,8 @@
 |---|---|---|---|
 | **Phase 1** | App Icon & Store Identity | **COMPLETED** ✅ | 512×512 store icon, adaptive mipmaps, botanical teal & spark of clarity |
 | **Phase 2** | Google Sign-In & Multi-Tenant Firestore | **COMPLETED** ✅ | Firebase Auth, scoped `/users/{userId}/expenses`, Warm Linen Editorial UI |
-| **Phase 3** | Notification Privacy & Security Hardening | **IN PROGRESS** 🟡 | Bank package whitelist, OTP kill-switch, Privacy Transparency Center |
-| **Phase 4** | Play Store Packaging & Policy Compliance | **UPCOMING** ⚪ | Production AAB bundle, Notification Listener disclosure, Data Safety |
+| **Phase 3** | Notification Privacy & Security Hardening | **COMPLETED** ✅ | Bank package whitelist, OTP kill-switch, Privacy Transparency Center |
+| **Phase 4** | Play Store Packaging & Policy Compliance | **NEXT / UPCOMING** 🟡 | Production AAB bundle, Notification Listener disclosure, Data Safety |
 | **Phase 5** | Future Couple Sharing & Subscriptions | **ROADMAP** ⚪ | Shared `/households/{householdId}` ledger, subscription tier |
 
 ---

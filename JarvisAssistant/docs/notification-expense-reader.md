@@ -24,11 +24,28 @@ References:
 6. `App.tsx` subscribes to the same collection, calculates dashboard totals, and exposes category
    edits for each saved expense.
 
-## Privacy Rule
+## Privacy & Security Architecture (Phase 3 Hardening)
 
-Bank notification extraction must stay local. Do not send the raw notification text to an AI model or
-third-party API just to extract amount, category, merchant, or bank. Store the minimum useful
-structured data: amount, category, merchant, bank, source app/title, date, and notification time.
+Jarvis implements bank-grade privacy protections designed for Google Play Data Safety compliance:
+
+1. **Strict Banking Package Whitelist (`isWhitelistedApp`)**:
+   - Notifications are filtered exclusively against official banking and fintech package IDs (`WHITELISTED_BANK_APPS` in `expenseNotificationParser.ts`):
+     - Banks: BCA (`id.co.bca.mybca`, `com.bca`), Mandiri (`id.co.bankmandiri.livin`), BRI (`id.co.bri.brimo`), BNI (`id.co.bni.papamobile`), CIMB Niaga (`id.co.cimbniaga.octomobile`), Bank Jago (`com.jago.app`), Jenius (`com.btpn.dc`), Permata (`id.co.permatabank.mobile`).
+     - Fintech E-Wallets: GoPay (`com.gojek.app`), Dana (`id.dana`), OVO (`id.ovo.app`), ShopeePay (`com.shopee.id`).
+   - Personal chat, SMS, social media, and email packages (`com.whatsapp`, `org.telegram.messenger`, `org.thoughtcrime.securesms`, `com.google.android.apps.messaging`, `com.instagram.android`, `com.google.android.gm`, etc.) are **immediately dropped** without inspecting their contents.
+
+2. **Automated OTP & Credential Kill-Switch (`containsSensitiveCredentials`)**:
+   - Notifications containing sensitive verification terms (`OTP`, `kode verifikasi`, `pin`, `password`, `cvv`, `kode rahasia`, `security code`, `jangan beritahu siapapun`, `do not share`) trigger an immediate kill-switch.
+   - The notification is dropped from memory instantly; no transaction extraction is attempted.
+
+3. **RAM-Only Local Processing Guarantee**:
+   - Notification text is parsed 100% on the device CPU using deterministic regex in JavaScript.
+   - Raw notification strings and message bodies **never leave the phone** and are never saved to SQLite, MMKV, AsyncStorage, or cloud servers.
+   - Only clean, minimal structured data (amount, category, merchant, bank, type, timestamp) is synced to `/users/{userId}/expenses`.
+
+4. **In-App Privacy Transparency Center**:
+   - Accessible via Settings > **Privacy & Transparency Center** (`PrivacyTransparencyModal.tsx`).
+   - Renders in the Warm Linen & Botanical Editorial theme, allowing users to inspect the active package whitelist and data safety boundaries directly on their phone.
 
 ## Headless Runtime Rule
 
