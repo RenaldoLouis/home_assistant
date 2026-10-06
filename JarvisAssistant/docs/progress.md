@@ -91,7 +91,8 @@
 - [x] Measured 5–15 s from end of speech to first audio. Causes: the 2.5 native-audio model thinks before speaking, and the default end-of-speech detection is slow under noise.
 - [x] Switched to `gemini-3.1-flash-live-preview` and tuned end-of-speech detection (high sensitivity, 500 ms of silence). Measured 1.0–1.2 s with room noise.
 - [x] Replaced the deprecated `realtimeInput.mediaChunks` with `realtimeInput.audio`.
-- [ ] Verify on the S24 FE: reply speed, and no self-interruption from loudspeaker echo.
+- [x] Installed on the S24 FE (arm64 release APK over wireless ADB, October 6, 2026).
+- [ ] Confirm on the S24 FE with a real conversation: reply speed, and no self-interruption from loudspeaker echo.
 - [ ] Move to `gemini-3.8-live` once it stops returning `1011 Internal error`. Details: [voice-latency.md](voice-latency.md).
 
 ---

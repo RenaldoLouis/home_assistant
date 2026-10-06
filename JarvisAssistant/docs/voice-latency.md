@@ -31,6 +31,11 @@ Session connect plus setup takes another 0.5–1.5 s per tap, before the mic sta
 
 Verified on 3.1: tool calls work, and a mid-session `clientContent` text turn (the daily-review button) gets a spoken reply in about 0.67 s.
 
+## Deployment
+
+- 2026-10-06: merged to `main` (`0e576ae`) and installed on the S24 FE as an arm64-only release APK (31.5 MB) over wireless ADB. The installed bundle was checked to contain `gemini-3.1-flash-live-preview` and `END_SENSITIVITY_HIGH`. Build steps: [wifi-debugging-guide.md](wifi-debugging-guide.md#release-build--wireless-install-s24-fe).
+- On-device reply speed and echo behaviour are **not yet confirmed** by a real conversation. To check for echo, watch `adb logcat -s LiveAudioModule` while Jarvis speaks. `Audio playback flushed and stopped` *without* a preceding `Audio recording stopped` means Jarvis heard itself and interrupted its own reply.
+
 ## Known risks and follow-ups
 
 - **3.1 Flash Live is a "legacy preview".** Google recommends `gemini-3.8-live`. Once 3.8 stops returning `1011`, re-measure and switch (one config line). 3.8 makes tools non-blocking by default and keeps proactive audio always on, so re-check the tool flow when migrating.

@@ -418,6 +418,10 @@ Stats: 23 obs (6,319t read) | 364,986t work | 98% savings
   - `gemini-3.8-live` (Google's recommended model) returned `1011 Internal error` in 12 of 14 runs, even with a bare setup. Re-test and migrate later
   - Build fix: deleted the stale `android/build/generated/autolinking/autolinking.json`, which still pointed at the pre-rename `Personal/Home Assistant` path
   - Open: verify on the S24 FE, especially self-interruption from loudspeaker echo (`VOICE_RECOGNITION` has no echo cancellation). Details: `JarvisAssistant/docs/voice-latency.md`
+✅ Release deploy + build cleanup (Oct 6, 2026)
+  - The Mac's disk filled up mid-build (`No space left on device`). After the user freed space, built `assembleRelease -PreactNativeArchitectures=arm64-v8a` (31.5 MB APK) and installed it on the S24 FE over wireless ADB with `adb -s <IP>:<PORT>`. The bundle was confirmed to contain the 3.1 model and VAD config
+  - Deleted the regenerable build output (`android/app/build`, `android/app/.cxx`, `android/build`, `android/.gradle`, and `node_modules/**/android/{build,.cxx}`), about 3.3 GB. Kept `~/.gradle/caches` (5.7 GB global cache)
+  - Docs: `wifi-debugging-guide.md` gained release-build/wireless-install, stale-autolinking, low-disk and cleanup sections; fixed the stale `Home Assistant` path in its quick reference
 
 
 
