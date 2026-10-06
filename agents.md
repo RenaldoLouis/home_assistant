@@ -406,6 +406,18 @@ Stats: 23 obs (6,319t read) | 364,986t work | 98% savings
 🔴 Voice tool handlers kept the previous account's user ID after an account switch
   - Root cause: `toolHandlers` `useMemo` in `App.tsx` omitted `activeUserId` from its deps, so `update_expense`/`delete_expense` built Firestore paths for the old account whenever the switch didn't also change `expenses`/`dataStatus` (e.g. first snapshot still pending)
   - Fix: added `activeUserId` to the deps; regression test in `App.test.tsx` switches accounts before any snapshot and asserts the delete targets `users/{newUid}/expenses` (16 suites, 111 tests, zero lint errors)
+⏸️ Prolink lamp voice control — parked on branch `feature/lamp-local-control` (commit `af2b115`, not merged)
+  - Findings: mEzee is a Tuya OEM app and the DS-3601 is a Tuya Wi-Fi bulb. The Tuya developer platform only links Smart Life / Tuya Smart accounts, so reading the bulb's local key requires moving it to Smart Life once.
+  - User decisions: local LAN control (no cloud at runtime), scope = power + brightness + warmth. Parked before the Smart Life move. Follow-up idea: block the bulb's internet after setup.
+  - Built: `control_light {power?, brightness 1-100, warmth 0-100}` (removed the speculative `protocol` arg), `parseLampCommand`, `toTuyaDataPoints`, `createLampController` (serialized, spoken error reasons). Never reports success without a handler.
+  - Not built: Kotlin Tuya LAN transport (needs protocol version 3.3/3.4/3.5 + DP model from the device), App wiring, dashboard card. Setup steps: `docs/lamp-local-control.md` on that branch.
+🔴 Voice replies took 5–15 s → ~1 s (branch `perf/voice-latency`, merged to `main`)
+  - Feedback loop: a throwaway Node harness streamed a `say`-synthesized question to Gemini Live exactly like `LiveAudioModule` (64 ms PCM chunks, real-time, mic keeps streaming) and timed end-of-speech → first audio
+  - Root causes: (1) `gemini-2.5-flash-native-audio-latest` thinks before speaking (34–187 thought tokens, ~2–3 s); (2) server-default end-of-speech detection under room noise (one run 15.7 s)
+  - Fix (user chose the model): `gemini-3.1-flash-live-preview` in `env.ts` / `.env` / `.env.example`; `realtimeInputConfig.automaticActivityDetection` = HIGH end sensitivity, 500 ms silence, 100 ms prefix (300 ms gave no real gain); `realtimeInput.audio` instead of deprecated `mediaChunks`. Measured 1.04–1.2 s with noise; tool turns 2.1–2.6 s; mid-session `clientContent` still works on 3.1
+  - `gemini-3.8-live` (Google's recommended model) returned `1011 Internal error` in 12 of 14 runs, even with a bare setup. Re-test and migrate later
+  - Build fix: deleted the stale `android/build/generated/autolinking/autolinking.json`, which still pointed at the pre-rename `Personal/Home Assistant` path
+  - Open: verify on the S24 FE, especially self-interruption from loudspeaker echo (`VOICE_RECOGNITION` has no echo cancellation). Details: `JarvisAssistant/docs/voice-latency.md`
 
 
 

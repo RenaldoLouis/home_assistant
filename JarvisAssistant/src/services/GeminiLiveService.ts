@@ -242,6 +242,16 @@ export class GeminiLiveService {
             },
           },
         },
+        // Measured on 2026-10-06 (docs/voice-latency.md): high end-of-speech
+        // sensitivity with 500 ms of silence answers ~0.4 s sooner than the
+        // server default in a noisy room; 300 ms was no faster.
+        realtimeInputConfig: {
+          automaticActivityDetection: {
+            endOfSpeechSensitivity: 'END_SENSITIVITY_HIGH',
+            silenceDurationMs: 500,
+            prefixPaddingMs: 100,
+          },
+        },
         systemInstruction: {
           parts: [{ text: this.systemInstruction }],
         },
@@ -261,12 +271,10 @@ export class GeminiLiveService {
 
     const audioPayload = {
       realtimeInput: {
-        mediaChunks: [
-          {
-            mimeType: 'audio/pcm;rate=16000',
-            data: base64Data,
-          },
-        ],
+        audio: {
+          mimeType: 'audio/pcm;rate=16000',
+          data: base64Data,
+        },
       },
     };
 

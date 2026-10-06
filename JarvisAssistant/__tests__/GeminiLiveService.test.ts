@@ -132,6 +132,18 @@ describe('GeminiLiveService', () => {
     expect(mockLiveAudioModule.startRecording).toHaveBeenCalled();
   });
 
+  it('ends the user turn after 500 ms of silence so replies start quickly', async () => {
+    await service.startSession();
+    await new Promise<void>(resolve => setTimeout(resolve, 10));
+
+    const setupMsg = JSON.parse(MockWebSocket.instances[0].sentMessages[0]);
+    expect(setupMsg.setup.realtimeInputConfig.automaticActivityDetection).toEqual({
+      endOfSpeechSensitivity: 'END_SENSITIVITY_HIGH',
+      silenceDurationMs: 500,
+      prefixPaddingMs: 100,
+    });
+  });
+
   it('forwards mic audio chunks to WebSocket', async () => {
     await service.startSession();
     await new Promise<void>(resolve => setTimeout(resolve, 10));
@@ -143,9 +155,11 @@ describe('GeminiLiveService', () => {
 
     expect(ws.sentMessages.length).toBe(1);
     const audioMsg = JSON.parse(ws.sentMessages[0]);
-    expect(audioMsg.realtimeInput).toBeDefined();
-    expect(audioMsg.realtimeInput.mediaChunks[0].mimeType).toBe('audio/pcm;rate=16000');
-    expect(audioMsg.realtimeInput.mediaChunks[0].data).toBe('base64-pcm-audio-data');
+    expect(audioMsg).toEqual({
+      realtimeInput: {
+        audio: { mimeType: 'audio/pcm;rate=16000', data: 'base64-pcm-audio-data' },
+      },
+    });
   });
 
   it('routes incoming audio chunks to NativeModules.LiveAudioModule.playAudioChunk', async () => {
