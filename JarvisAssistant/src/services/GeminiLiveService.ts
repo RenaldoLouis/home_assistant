@@ -40,6 +40,9 @@ export function buildJarvisSystemInstruction(spendingContext?: string): string {
     '- For each expense: state the amount in rupiah, merchant, and time. Ask what category and note to set.',
     '- Call update_expense to save the user\'s chosen category and note, or delete_expense if duplicate/removed.',
     '- Acknowledge the update in ONE brief sentence and move directly to the next expense.',
+    'MONTHLY SPENDING:',
+    '- For spending this month, a comparison with last month, or the highest-spending day or week, call get_monthly_recap (month as YYYY-MM, omit for this month).',
+    '- While a month is in progress, its comparison covers the same days of the previous month; say so when comparing.',
   ];
 
   if (spendingContext && spendingContext.trim()) {

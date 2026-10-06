@@ -394,6 +394,15 @@ Stats: 23 obs (6,319t read) | 364,986t work | 98% savings
   - Created `PrivacyTransparencyModal.tsx` in Warm Linen & Botanical Editorial theme with interactive whitelist viewer
   - Connected modal trigger in `DashboardScreen.tsx` Settings sheet
   - Added unit tests in `expenseNotificationParser.test.ts` and `PrivacyTransparencyModal.test.tsx` (15 suites, 93 unit tests, 100% passing)
+### Oct 6, 2026
+🟣 Monthly Spending Recap, Month-over-Month Comparison & Peak Day/Week (branch `feature/monthly-recap`)
+  - Added pure `buildMonthRecap` + `summarizeMonthRecap` in `src/expenses/monthRecap.ts`: month total, income/net, daily average, per-day totals, Mon–Sun weeks clipped to the month, highest day/week (ties → earliest), top categories with share
+  - Comparison rule (user decision): in-progress month vs the same days of the previous month (clamped to shorter months); completed month vs full previous month; full previous month total kept as context
+  - Added `MonthRecapCard` (Today tab, under weekly chart, follows the selected day's month) and `MonthRecapDetails` sheet (`src/components/MonthRecap.tsx`): month navigation bounded by earliest expense/current month, daily bar chart, tappable Highest day/week rows that jump to that day, top 5 categories
+  - Added Jarvis tool `get_monthly_recap({ month?: 'YYYY-MM' })` (aggregates only — no merchants, banks, notes, IDs) + MONTHLY SPENDING system-instruction lines
+  - Added month helpers to `dates.ts` (`startOfMonth`, `addMonths`, `daysInMonth`, `monthKey`, `parseMonth`); moved `money`/`compactMoney` to `src/expenses/money.ts`; exported `normalizeAmount`
+  - Docs: `JarvisAssistant/docs/monthly-recap.md`; architecture tool list updated
+  - Tests: `monthRecap.test.ts` (new) + dashboard/tool/App/Gemini cases (16 suites, 110 tests passing, zero TypeScript errors)
 
 
 

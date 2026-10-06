@@ -78,6 +78,7 @@ describe('GeminiLiveService', () => {
     const defaultInstruction = buildJarvisSystemInstruction();
     expect(defaultInstruction).toContain('play_music');
     expect(defaultInstruction).toContain('control_light');
+    expect(defaultInstruction).toContain('get_monthly_recap');
 
     const withContext = buildJarvisSystemInstruction('Today: IDR 50.000 spent');
     expect(withContext).toContain('DAILY SPENDING CONTEXT:');

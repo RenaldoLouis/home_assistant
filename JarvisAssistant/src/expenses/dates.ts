@@ -54,3 +54,23 @@ export function normalizeDate(value: unknown): Date | null {
   }
   return date instanceof Date && Number.isFinite(date.getTime()) ? date : null;
 }
+
+export function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+export function addMonths(date: Date, months: number): Date {
+  return new Date(date.getFullYear(), date.getMonth() + months, 1);
+}
+
+export function daysInMonth(date: Date): number {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+}
+
+export function monthKey(date: Date): string {
+  return dayKey(date).slice(0, 7);
+}
+
+export function parseMonth(value: string): Date | null {
+  return /^\d{4}-\d{2}$/.test(value) ? parseDay(`${value}-01`) : null;
+}

@@ -5,6 +5,7 @@ export interface SavedExpense {
   createdAt?: unknown;
   type?: unknown;
   note?: unknown;
+  category?: unknown;
 }
 
 export interface DayWeekItem {
@@ -99,7 +100,7 @@ export function buildExpenseSummary(
   };
 }
 
-function normalizeAmount(amount: unknown): number {
+export function normalizeAmount(amount: unknown): number {
   if (typeof amount === 'number' && Number.isFinite(amount)) {
     return Math.round(amount);
   }

@@ -331,6 +331,47 @@ test('answers a requested local day and refreshes totals without restarting the 
   await ReactTestRenderer.act(async () => renderer!.unmount());
 });
 
+test('answers a monthly recap for a requested month and rejects malformed months', async () => {
+  mockExpenseDocs = [
+    {
+      id: 'sep',
+      data: () => ({
+        amount: 40000,
+        category: 'Food',
+        date: new Date(2026, 8, 8, 12).toISOString(),
+      }),
+    },
+    {
+      id: 'aug',
+      data: () => ({
+        amount: 10000,
+        category: 'Food',
+        date: new Date(2026, 7, 20, 12).toISOString(),
+      }),
+    },
+  ];
+  let renderer: ReactTestRenderer.ReactTestRenderer;
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(<App />);
+  });
+  const handlers: ToolExecutionHandlers =
+    mockSetToolHandlers.mock.calls[
+      mockSetToolHandlers.mock.calls.length - 1
+    ][0];
+  expect(await handlers.onGetMonthlyRecap?.({ month: '2026-09' })).toMatchObject(
+    {
+      month: '2026-09',
+      totalSpent: 40000,
+      comparison: { previousTotal: 10000, changePercent: 300 },
+      highestDay: { date: '2026-09-08', total: 40000 },
+    },
+  );
+  expect(await handlers.onGetMonthlyRecap?.({ month: '2026-9' })).toEqual({
+    error: 'Please use a valid month in YYYY-MM format.',
+  });
+  await ReactTestRenderer.act(async () => renderer!.unmount());
+});
+
 test('keeps a rejected correction visible outside the editor and allows retry', async () => {
   mockExpenseDocs = [
     {

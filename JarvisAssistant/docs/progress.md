@@ -77,6 +77,15 @@
 
 ---
 
+### Feature: Monthly Spending Recap
+**Status**: `COMPLETED` ✅ (branch `feature/monthly-recap`, pending device verification)  
+- [x] Month card on Today + Month recap sheet (total, same-period comparison, daily chart, highest day/week, top categories, month browsing).
+- [x] Jarvis voice tool `get_monthly_recap`.
+- [x] Unit + screen tests (16 suites, 110 tests). Details: [monthly-recap.md](monthly-recap.md).
+- [ ] Verify chart and card layout on the Samsung Galaxy S24 FE release build.
+
+---
+
 ### Phase 4: Google Play Store App Management & Compliance
 **Status**: `UPCOMING` ⚪  
 - [ ] **Production Android App Bundle (AAB)**:

@@ -15,11 +15,21 @@ import { AnimatedPressable } from '../components/AnimatedPressable';
 import { Calendar } from '../components/Calendar';
 import { ExpenseEditor } from '../components/ExpenseEditor';
 import { Icon, categoryAppearance } from '../components/Icon';
+import { MonthRecapCard, MonthRecapDetails } from '../components/MonthRecap';
 import { Sheet } from '../components/Sheet';
 import { OrbState } from '../components/JarvisOrb';
 import { PrivacyTransparencyModal } from '../components/PrivacyTransparencyModal';
-import { addDays, dayKey, parseDay } from '../expenses/dates';
+import {
+  addDays,
+  addMonths,
+  dayKey,
+  monthKey,
+  parseDay,
+  parseMonth,
+} from '../expenses/dates';
 import { buildDayReport } from '../expenses/expenseSummary';
+import { compactMoney, money } from '../expenses/money';
+import { buildMonthRecap } from '../expenses/monthRecap';
 import { EditableExpense, ExpenseEdit } from '../expenses/types';
 import { UserProfile } from '../auth/types';
 import { Colors } from '../theme/colors';
@@ -51,25 +61,14 @@ export interface DashboardScreenProps {
   onSignOut?: () => void;
   onSignInRequest?: () => void;
 }
-const money = (amount: number) => `Rp ${amount.toLocaleString('id-ID')}`;
-const compactMoney = (amount: number) =>
-  amount >= 1000000
-    ? `${(amount / 1000000).toLocaleString('id-ID', {
-        maximumFractionDigits: 1,
-      })} jt`
-    : amount >= 1000
-    ? `${(amount / 1000).toLocaleString('id-ID', {
-        maximumFractionDigits: 0,
-      })} rb`
-    : String(amount);
-
 export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
   const [tab, setTab] = useState<'today' | 'home'>('today');
   const [now, setNow] = useState(new Date());
   const [chosenDay, setChosenDay] = useState<string | null>(null);
-  const [panel, setPanel] = useState<'calendar' | 'voice' | 'settings' | null>(
-    null,
-  );
+  const [panel, setPanel] = useState<
+    'calendar' | 'voice' | 'settings' | 'month' | null
+  >(null);
+  const [recapMonthKey, setRecapMonthKey] = useState(() => monthKey(now));
   const [editing, setEditing] = useState<EditableExpense | null>(null);
   const [rebindStatus, setRebindStatus] = useState<string | null>(null);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
@@ -111,6 +110,31 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
   );
   const selectDay = (date: Date) =>
     setChosenDay(dayKey(date) === dayKey(new Date()) ? null : dayKey(date));
+  const selectedMonthKey = monthKey(selected);
+  const currentMonthKey = monthKey(now);
+  const selectedMonthRecap = useMemo(
+    () => buildMonthRecap(props.expenses, parseMonth(selectedMonthKey)!, now),
+    [props.expenses, selectedMonthKey, now],
+  );
+  const sheetMonthRecap = useMemo(
+    () =>
+      panel === 'month'
+        ? buildMonthRecap(props.expenses, parseMonth(recapMonthKey)!, now)
+        : null,
+    [panel, props.expenses, recapMonthKey, now],
+  );
+  const earliestMonthKey = useMemo(
+    () =>
+      props.expenses.reduce((earliest, expense) => {
+        const date = new Date(expense.date);
+        if (!Number.isFinite(date.getTime())) return earliest;
+        const key = monthKey(date);
+        return key < earliest ? key : earliest;
+      }, currentMonthKey),
+    [props.expenses, currentMonthKey],
+  );
+  const shiftRecapMonth = (months: number) =>
+    setRecapMonthKey(key => monthKey(addMonths(parseMonth(key)!, months)));
   const maxBar = Math.max(...report.week.map(day => day.total), 1);
   const ready = props.dataStatus !== 'loading' && props.dataStatus !== 'error';
   const statusText = {
@@ -432,6 +456,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
           })}
         </ScrollView>
       </View>
+      <MonthRecapCard
+        recap={selectedMonthRecap}
+        ready={ready}
+        onPress={() => {
+          setRecapMonthKey(selectedMonthKey);
+          setPanel('month');
+        }}
+      />
       <View style={s.listHeading}>
         <View>
           <Text accessibilityRole="header" style={s.sectionTitle}>
@@ -676,6 +708,21 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
           <Calendar
             value={selected}
             onSelect={date => {
+              selectDay(date);
+              setPanel(null);
+            }}
+          />
+        </Sheet>
+      )}
+      {panel === 'month' && sheetMonthRecap && (
+        <Sheet title="Month recap" onClose={() => setPanel(null)}>
+          <MonthRecapDetails
+            recap={sheetMonthRecap}
+            canGoBack={recapMonthKey > earliestMonthKey}
+            canGoForward={recapMonthKey < currentMonthKey}
+            onPrevious={() => shiftRecapMonth(-1)}
+            onNext={() => shiftRecapMonth(1)}
+            onSelectDay={date => {
               selectDay(date);
               setPanel(null);
             }}

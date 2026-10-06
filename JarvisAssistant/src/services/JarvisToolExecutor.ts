@@ -107,6 +107,20 @@ export const JARVIS_TOOL_DECLARATIONS: FunctionDeclaration[] = [
       },
     },
   },
+  {
+    name: 'get_monthly_recap',
+    description:
+      'Get a spending recap for a calendar month: total spent, comparison with the previous month, highest-spending day and week, weekly totals, and top categories.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        month: {
+          type: 'STRING',
+          description: 'Optional month (YYYY-MM). Defaults to the current month.',
+        },
+      },
+    },
+  },
 ];
 
 export interface ToolExecutionHandlers {
@@ -125,6 +139,9 @@ export interface ToolExecutionHandlers {
   onGetDailyExpenses?: (args?: {
     date?: string;
   }) => Promise<{ expenses: Array<Record<string, unknown>> }> | { expenses: Array<Record<string, unknown>> };
+  onGetMonthlyRecap?: (args?: {
+    month?: string;
+  }) => Record<string, unknown> | Promise<Record<string, unknown>>;
 }
 
 export interface FunctionResponsePayload {
@@ -233,6 +250,20 @@ export async function executeJarvisTool(
           id: callId,
           response: {
             output: { expenses: [] },
+          },
+        };
+      }
+
+      case 'get_monthly_recap': {
+        const month = args.month as string | undefined;
+        if (handlers?.onGetMonthlyRecap) {
+          const result = await handlers.onGetMonthlyRecap({ month });
+          return { id: callId, response: { output: result } };
+        }
+        return {
+          id: callId,
+          response: {
+            output: { error: 'Monthly recap is unavailable right now.' },
           },
         };
       }

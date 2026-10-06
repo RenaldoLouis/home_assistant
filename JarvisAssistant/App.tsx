@@ -31,7 +31,16 @@ import { DashboardScreen } from './src/screens/DashboardScreen';
 import { OrbState } from './src/components/JarvisOrb';
 import { JARVIS_USER_ID } from './src/expenses/constants';
 import { buildDayReport } from './src/expenses/expenseSummary';
-import { normalizeDate, parseDay, dayKey } from './src/expenses/dates';
+import {
+  normalizeDate,
+  parseDay,
+  parseMonth,
+  dayKey,
+} from './src/expenses/dates';
+import {
+  buildMonthRecap,
+  summarizeMonthRecap,
+} from './src/expenses/monthRecap';
 import { buildExpenseUpdate } from './src/expenses/expenseEditing';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Colors } from './src/theme/colors';
@@ -268,6 +277,21 @@ function JarvisMainContent() {
             note: item.note || '',
           })),
         };
+      },
+      onGetMonthlyRecap: ({ month } = {}) => {
+        if (dataStatus === 'loading' || dataStatus === 'error')
+          return {
+            error: 'Spending data is unavailable right now. Please try again.',
+          };
+        const target = month ? parseMonth(month) : new Date();
+        if (!target)
+          return { error: 'Please use a valid month in YYYY-MM format.' };
+        const summary = summarizeMonthRecap(
+          buildMonthRecap(expenses, target),
+        );
+        return dataStatus === 'cached' || dataStatus === 'pending'
+          ? { ...summary, note: 'From the records currently on this phone.' }
+          : summary;
       },
     }),
     [expenses, dataStatus],

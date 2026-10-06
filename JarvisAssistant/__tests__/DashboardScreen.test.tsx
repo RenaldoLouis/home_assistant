@@ -4,7 +4,7 @@ import {
   DashboardScreen,
   DashboardScreenProps,
 } from '../src/screens/DashboardScreen';
-import { Linking, NativeModules, TextInput } from 'react-native';
+import { Linking, NativeModules, Text, TextInput } from 'react-native';
 
 jest.mock(
   'react-native-safe-area-context',
@@ -324,4 +324,108 @@ test('permission modal provides button to open battery settings', async () => {
   expect(openSettingsSpy).toHaveBeenCalledTimes(1);
 
   openSettingsSpy.mockRestore();
+});
+
+const textOf = (children: unknown): string =>
+  Array.isArray(children)
+    ? children.map(textOf).join('')
+    : typeof children === 'string' || typeof children === 'number'
+    ? String(children)
+    : '';
+const visibleText = () =>
+  screen.root.findAllByType(Text).map(node => textOf(node.props.children));
+const byTestId = (testID: string) =>
+  screen.root.findAll(node => node.props.testID === testID)[0];
+// 10 Sep 2026 (system time) is a Thursday; 1 Sep 2026 is a Tuesday.
+const withAugust = [
+  ...props.expenses,
+  {
+    id: 'aug-early',
+    amount: 20000,
+    category: 'Food',
+    merchant: 'Cafe',
+    bank: 'BCA',
+    date: new Date(2026, 7, 5, 12).toISOString(),
+  },
+  {
+    id: 'aug-late',
+    amount: 99000,
+    category: 'Food',
+    merchant: 'Cafe',
+    bank: 'BCA',
+    date: new Date(2026, 7, 25, 12).toISOString(),
+  },
+];
+
+test('the month card compares spending so far with the same days of last month', async () => {
+  await act(async () => {
+    screen.update(<DashboardScreen {...props} expenses={withAugust} />);
+  });
+
+  expect(visibleText()).toEqual(
+    expect.arrayContaining([
+      'SEPTEMBER SO FAR',
+      'Rp 35.000',
+      '↑ 75% vs 1–10 Aug',
+      'Highest day · Thu 10 Sept · Rp 25.000',
+    ]),
+  );
+  expect(byTestId('month-recap-card').props.accessibilityLabel).toBe(
+    'September so far, Rp 35.000, up 75% versus 1–10 Aug. Open month recap',
+  );
+});
+
+test('the month recap sheet shows peaks and categories, browses months, and jumps to a day', async () => {
+  await act(async () => {
+    screen.update(<DashboardScreen {...props} expenses={withAugust} />);
+  });
+  await act(async () => byTestId('month-recap-card').props.onPress());
+
+  expect(visibleText()).toEqual(
+    expect.arrayContaining([
+      'September 2026',
+      'Highest day',
+      'Thu 10 Sept',
+      'Highest week',
+      '7–10 Sept',
+      'Food',
+      'Transport',
+      '71%',
+      '29%',
+    ]),
+  );
+  expect(
+    screen.root.findAllByProps({ accessibilityLabel: 'Next month' })[0].props
+      .accessibilityState,
+  ).toMatchObject({ disabled: true });
+
+  await press('Previous month');
+  expect(visibleText()).toEqual(
+    expect.arrayContaining([
+      'August 2026',
+      'Rp 119.000',
+      'Nothing recorded in July',
+      '24–30 Aug',
+    ]),
+  );
+  expect(
+    screen.root.findAllByProps({ accessibilityLabel: 'Previous month' })[0]
+      .props.accessibilityState,
+  ).toMatchObject({ disabled: true });
+
+  await press('View highest day, Tue 25 Aug');
+  expect(visibleText()).not.toContain('Highest week');
+  expect(
+    screen.root.findAllByProps({ accessibilityLabel: 'Edit Food, Rp 99.000' })
+      .length,
+  ).toBeGreaterThan(0);
+});
+
+test('the month card waits for spending data before showing totals', async () => {
+  await act(async () => {
+    screen.update(<DashboardScreen {...props} dataStatus="loading" />);
+  });
+
+  expect(byTestId('month-recap-card').props.disabled).toBe(true);
+  expect(visibleText()).not.toContain('Rp 35.000');
 });

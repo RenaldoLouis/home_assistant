@@ -10,6 +10,7 @@ describe('JarvisToolExecutor', () => {
     expect(names).toContain('update_expense');
     expect(names).toContain('delete_expense');
     expect(names).toContain('get_daily_expenses');
+    expect(names).toContain('get_monthly_recap');
   });
 
   it('executes update_expense successfully', async () => {
@@ -156,6 +157,24 @@ describe('JarvisToolExecutor', () => {
       response: {
         output: { summary: 'You spent IDR 250,000 today.' }
       }
+    });
+  });
+
+  it('executes get_monthly_recap with the requested month', async () => {
+    const mockMonthProvider = jest
+      .fn()
+      .mockReturnValue({ month: '2026-09', totalSpent: 1250000 });
+    const result = await executeJarvisTool(
+      'call-month',
+      'get_monthly_recap',
+      { month: '2026-09' },
+      { onGetMonthlyRecap: mockMonthProvider },
+    );
+
+    expect(mockMonthProvider).toHaveBeenCalledWith({ month: '2026-09' });
+    expect(result).toEqual({
+      id: 'call-month',
+      response: { output: { month: '2026-09', totalSpent: 1250000 } },
     });
   });
 

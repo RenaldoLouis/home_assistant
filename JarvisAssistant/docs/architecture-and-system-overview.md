@@ -54,7 +54,7 @@ flowchart TD
     subgraph AIEngine["Gemini Multimodal Live Engine"]
         AudioBridge["LiveAudioModule.kt\n(Native Audio In/Out)"]
         LiveService["GeminiLiveService.ts\n(WebSocket wss://generativelanguage.googleapis.com)"]
-        ToolExecutor["JarvisToolExecutor.ts\n(Tools: update_expense, delete_expense, get_daily_expenses, play_music, etc.)"]
+        ToolExecutor["JarvisToolExecutor.ts\n(Tools: update_expense, delete_expense, get_daily_expenses, get_monthly_recap, play_music, etc.)"]
         Orb["JarvisOrb.tsx\n(Animated Voice State)"]
     end
 
@@ -143,6 +143,7 @@ Located in `src/services/` and `android/.../LiveAudioModule.kt`:
     4. `get_daily_recap`: Spoken daily summary.
     5. `play_music`: Launch Spotify via Android deep link (`spotify:play` / `spotify:`).
     6. `control_light`: Smart light control via BLE / Wi-Fi.
+    7. `get_monthly_recap`: Month total, same-period comparison with the previous month, highest day/week, weekly totals, top categories (aggregates only). See [monthly-recap.md](monthly-recap.md).
 
 ---
 
