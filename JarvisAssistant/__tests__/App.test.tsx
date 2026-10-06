@@ -131,6 +131,7 @@ jest.mock('../src/screens/DashboardScreen', () => ({
 beforeEach(() => {
   jest.clearAllMocks();
   mockExpenseDocs = [];
+  mockUser.uid = 'jarvis_user_id';
 });
 
 test('renders correctly', async () => {
@@ -369,6 +370,35 @@ test('answers a monthly recap for a requested month and rejects malformed months
   expect(await handlers.onGetMonthlyRecap?.({ month: '2026-9' })).toEqual({
     error: 'Please use a valid month in YYYY-MM format.',
   });
+  await ReactTestRenderer.act(async () => renderer!.unmount());
+});
+
+test('voice expense changes target the signed-in account after an account switch', async () => {
+  const firestore = jest.requireMock('@react-native-firebase/firestore');
+  // Neither account's first snapshot has arrived yet (e.g. slow network).
+  firestore.onSnapshot
+    .mockImplementationOnce(() => jest.fn())
+    .mockImplementationOnce(() => jest.fn());
+  let renderer: ReactTestRenderer.ReactTestRenderer;
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(<App />);
+  });
+
+  mockUser.uid = 'second_user';
+  await ReactTestRenderer.act(async () => renderer!.update(<App />));
+  const handlers: ToolExecutionHandlers =
+    mockSetToolHandlers.mock.calls[
+      mockSetToolHandlers.mock.calls.length - 1
+    ][0];
+  firestore.collection.mockClear();
+  await handlers.onDeleteExpense?.({ expense_id: 'expense-1' });
+
+  expect(firestore.collection).toHaveBeenCalledWith(
+    { name: 'firestore' },
+    'users',
+    'second_user',
+    'expenses',
+  );
   await ReactTestRenderer.act(async () => renderer!.unmount());
 });
 

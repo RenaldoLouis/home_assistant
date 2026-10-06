@@ -294,7 +294,7 @@ function JarvisMainContent() {
           : summary;
       },
     }),
-    [expenses, dataStatus],
+    [expenses, dataStatus, activeUserId],
   );
 
   const spendingContext = useMemo(() => {

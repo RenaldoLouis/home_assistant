@@ -403,6 +403,9 @@ Stats: 23 obs (6,319t read) | 364,986t work | 98% savings
   - Added month helpers to `dates.ts` (`startOfMonth`, `addMonths`, `daysInMonth`, `monthKey`, `parseMonth`); moved `money`/`compactMoney` to `src/expenses/money.ts`; exported `normalizeAmount`
   - Docs: `JarvisAssistant/docs/monthly-recap.md`; architecture tool list updated
   - Tests: `monthRecap.test.ts` (new) + dashboard/tool/App/Gemini cases (16 suites, 110 tests passing, zero TypeScript errors)
+🔴 Voice tool handlers kept the previous account's user ID after an account switch
+  - Root cause: `toolHandlers` `useMemo` in `App.tsx` omitted `activeUserId` from its deps, so `update_expense`/`delete_expense` built Firestore paths for the old account whenever the switch didn't also change `expenses`/`dataStatus` (e.g. first snapshot still pending)
+  - Fix: added `activeUserId` to the deps; regression test in `App.test.tsx` switches accounts before any snapshot and asserts the delete targets `users/{newUid}/expenses` (16 suites, 111 tests, zero lint errors)
 
 
 
