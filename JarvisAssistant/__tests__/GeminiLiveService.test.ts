@@ -186,6 +186,57 @@ describe('GeminiLiveService', () => {
     expect(mockLiveAudioModule.playAudioChunk).toHaveBeenCalledWith('incoming-base64-audio');
   });
 
+  describe('while Jarvis is speaking through the loudspeaker', () => {
+    const MIC = 'AQIDBA=='; // 4 bytes of real mic audio
+    const SILENCE = 'AAAAAA=='; // the same 4 bytes as PCM silence
+    // 24 kHz 16-bit mono, as Gemini Live returns it: 48 bytes per millisecond,
+    // i.e. 16 base64 groups of 3 bytes each.
+    const reply = (ms: number) => 'AAAA'.repeat(ms * 16);
+
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => jest.useRealTimers());
+
+    async function startAndReceiveReply(...chunkMs: number[]) {
+      await service.startSession();
+      await jest.advanceTimersByTimeAsync(10);
+      const ws = MockWebSocket.instances[0];
+      for (const ms of chunkMs) {
+        ws.receiveMessage({
+          serverContent: {
+            modelTurn: {
+              parts: [{ inlineData: { mimeType: 'audio/pcm;rate=24000', data: reply(ms) } }],
+            },
+          },
+        });
+      }
+      return ws;
+    }
+
+    function micAudioSentNow(ws: MockWebSocket) {
+      service.sendAudioChunk(MIC);
+      return JSON.parse(ws.sentMessages[ws.sentMessages.length - 1]).realtimeInput.audio.data;
+    }
+
+    it('sends silence instead of the mic until the reply has played, plus a 300 ms tail', async () => {
+      // 1 s of reply arrives at once, faster than it plays.
+      const ws = await startAndReceiveReply(600, 400);
+
+      expect(micAudioSentNow(ws)).toBe(SILENCE);
+      jest.advanceTimersByTime(1250);
+      expect(micAudioSentNow(ws)).toBe(SILENCE);
+      jest.advanceTimersByTime(100);
+      expect(micAudioSentNow(ws)).toBe(MIC);
+    });
+
+    it('listens again straight away once playback is flushed', async () => {
+      const ws = await startAndReceiveReply(1000);
+
+      ws.receiveMessage({ serverContent: { interrupted: true } });
+
+      expect(micAudioSentNow(ws)).toBe(MIC);
+    });
+  });
+
   it('handles barge-in / interruption by immediately stopping audio playback', async () => {
     await service.startSession();
     await new Promise<void>(resolve => setTimeout(resolve, 10));

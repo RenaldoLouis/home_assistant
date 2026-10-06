@@ -34,11 +34,32 @@ Verified on 3.1: tool calls work, and a mid-session `clientContent` text turn (t
 ## Deployment
 
 - 2026-10-06: merged to `main` (`0e576ae`) and installed on the S24 FE as an arm64-only release APK (31.5 MB) over wireless ADB. The installed bundle was checked to contain `gemini-3.1-flash-live-preview` and `END_SENSITIVITY_HIGH`. Build steps: [wifi-debugging-guide.md](wifi-debugging-guide.md#release-build--wireless-install-s24-fe).
-- On-device reply speed and echo behaviour are **not yet confirmed** by a real conversation. To check for echo, watch `adb logcat -s LiveAudioModule` while Jarvis speaks. `Audio playback flushed and stopped` *without* a preceding `Audio recording stopped` means Jarvis heard itself and interrupted its own reply.
+- The user confirmed replies are much faster on the S24 FE. They also reported Jarvis sometimes stopping mid-reply on the phone loudspeaker, which led to the echo fix below.
+- 2026-10-06: echo fix merged to `main`. **Not built or installed yet**; the next release build includes it.
+
+## Echo: Jarvis cutting off its own reply
+
+**Symptom (S24 FE, phone loudspeaker):** Jarvis sometimes stops mid-sentence without the user speaking.
+
+**Cause:** the mic (`AudioSource.VOICE_RECOGNITION`, no echo cancellation) keeps streaming while Jarvis talks. Gemini hears the reply coming out of the speaker, treats it as the user starting to talk, and sends `serverContent.interrupted`. The app then flushes playback.
+
+**Reproduced off-device:** the harness "plays" each reply at real-time pace and mixes it back into the mic stream at a given gain, mirroring the app's flush on `interrupted` (3.1 Flash Live, the app's VAD settings, 2 runs each):
+
+| Echo in the mic | Reply played before the cut-off |
+|---|---|
+| None | Full reply (9.7 s, 13.7 s), never interrupted |
+| Gain 0.15 (faint) | 0.26–0.32 s |
+| Gain 0.4 | 0.32–0.44 s |
+| Gain 0.15 / 0.4 + `START_SENSITIVITY_LOW` | 0.26–0.38 s (no help) |
+| **Gain 0.4 / 1.0, mic sent as silence while the reply plays + 300 ms** | **Full reply (9.6–13.9 s), never interrupted** |
+
+**Fix (user decision: half-duplex):** `GeminiLiveService` projects when queued reply audio finishes playing. Each chunk adds its duration, from its byte length and the `rate=` in its MIME type, starting no earlier than now. Until that time plus `ECHO_TAIL_MS` (300 ms), `sendAudioChunk` sends same-length PCM silence instead of the mic audio. An `interrupted` message or ending the session clears the projection, so the mic is live again straight away.
+
+**Trade-off:** the user can no longer interrupt Jarvis by talking over it. "Stop conversation" ends the session and stops playback instead. Android echo cancellation (`VOICE_COMMUNICATION` + `AcousticEchoCanceler`) would keep voice barge-in, but routes audio like a phone call (call volume, Bluetooth SCO). It was declined for now.
 
 ## Known risks and follow-ups
 
 - **3.1 Flash Live is a "legacy preview".** Google recommends `gemini-3.8-live`. Once 3.8 stops returning `1011`, re-measure and switch (one config line). 3.8 makes tools non-blocking by default and keeps proactive audio always on, so re-check the tool flow when migrating.
-- **Echo / self-interruption (unverified on device).** The mic uses `AudioSource.VOICE_RECOGNITION`, which has no echo cancellation, and keeps streaming while Jarvis talks through the loudspeaker. The faster end-of-speech detection could make the model hear itself and interrupt its own reply. Check on the device: interruptions appear as `Audio playback flushed and stopped` in `adb logcat -s LiveAudioModule` while Jarvis is speaking.
+- **Echo fix needs on-device confirmation.** If Jarvis still stops mid-reply, watch `adb logcat -s LiveAudioModule ReactNativeJS`. `Audio playback flushed and stopped` *without* a preceding `Audio recording stopped` means an `interrupted` still got through, so the projection or the 300 ms tail is too short for the phone's real playback latency. A `WebSocket closed` line at that moment instead points at the connection.
 - **Cold start per tap.** Every tap opens a new WebSocket and sends setup (0.5–1.5 s). Pre-connecting when the app opens would hide this, but it keeps a session open and billing.
 - **Transcripts are never requested.** The setup has no `inputAudioTranscription` / `outputAudioTranscription`, so the transcript listeners in `App.tsx` never fire.

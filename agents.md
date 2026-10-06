@@ -422,6 +422,12 @@ Stats: 23 obs (6,319t read) | 364,986t work | 98% savings
   - The Mac's disk filled up mid-build (`No space left on device`). After the user freed space, built `assembleRelease -PreactNativeArchitectures=arm64-v8a` (31.5 MB APK) and installed it on the S24 FE over wireless ADB with `adb -s <IP>:<PORT>`. The bundle was confirmed to contain the 3.1 model and VAD config
   - Deleted the regenerable build output (`android/app/build`, `android/app/.cxx`, `android/build`, `android/.gradle`, and `node_modules/**/android/{build,.cxx}`), about 3.3 GB. Kept `~/.gradle/caches` (5.7 GB global cache)
   - Docs: `wifi-debugging-guide.md` gained release-build/wireless-install, stale-autolinking, low-disk and cleanup sections; fixed the stale `Home Assistant` path in its quick reference
+🔴 Jarvis cut off its own replies on the phone loudspeaker (branch `fix/voice-echo-cutoff`, merged to `main`; not built or installed yet, by user choice)
+  - User report after the latency fix: replies much faster, but Jarvis sometimes stops mid-reply (loudspeaker, not earbuds)
+  - Root cause: the mic (`VOICE_RECOGNITION`, no echo cancellation) streams Jarvis's own voice back. Gemini treats it as the user talking and sends `interrupted`, and the app flushes playback
+  - Feedback loop: the harness plays replies at real-time pace and mixes them back into the mic. Any echo (gain 0.15–0.4) cut replies after 0.26–0.44 s. `START_SENSITIVITY_LOW` did not help. Sending silence while the reply plays + 300 ms gave full replies even at gain 1.0
+  - Fix (user chose half-duplex over Android echo cancellation): `GeminiLiveService` projects the playback end from chunk byte length / MIME rate, and `sendAudioChunk` sends same-length PCM silence until end + `ECHO_TAIL_MS` (300). `interrupted` / session end clears it. Trade-off: no voice barge-in; "Stop conversation" stops playback
+  - Tests: 2 new cases in `GeminiLiveService.test.ts` (fake timers). Mutation-checked that the interruption-reset test fails without the reset. Docs: echo section in `JarvisAssistant/docs/voice-latency.md`
 
 
 

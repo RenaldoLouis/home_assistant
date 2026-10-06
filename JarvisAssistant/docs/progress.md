@@ -92,7 +92,9 @@
 - [x] Switched to `gemini-3.1-flash-live-preview` and tuned end-of-speech detection (high sensitivity, 500 ms of silence). Measured 1.0–1.2 s with room noise.
 - [x] Replaced the deprecated `realtimeInput.mediaChunks` with `realtimeInput.audio`.
 - [x] Installed on the S24 FE (arm64 release APK over wireless ADB, October 6, 2026).
-- [ ] Confirm on the S24 FE with a real conversation: reply speed, and no self-interruption from loudspeaker echo.
+- [x] Confirmed on the S24 FE by the user: replies are much faster.
+- [x] Fixed Jarvis cutting off its own reply on the loudspeaker (echo). The mic sends silence while the reply plays, plus 300 ms (merged to `main`, October 6, 2026).
+- [ ] Build and install the echo fix on the S24 FE (not built yet), then confirm replies no longer get cut off.
 - [ ] Move to `gemini-3.8-live` once it stops returning `1011 Internal error`. Details: [voice-latency.md](voice-latency.md).
 
 ---

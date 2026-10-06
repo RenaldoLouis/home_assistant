@@ -6,6 +6,22 @@ import {
   executeJarvisTool,
 } from './JarvisToolExecutor';
 
+// The mic has no echo cancellation, so on the loudspeaker Gemini hears Jarvis's
+// own reply as the user talking and cuts it off within ~0.3 s. Sending silence
+// until playback ends, plus this tail, stopped every cut-off in testing
+// (docs/voice-latency.md).
+const ECHO_TAIL_MS = 300;
+
+function base64ByteLength(base64: string): number {
+  const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+  return (base64.length * 3) / 4 - padding;
+}
+
+/** PCM silence of the same length: 'A' encodes six zero bits. */
+function toSilence(base64: string): string {
+  return base64.replace(/[^=]/g, 'A');
+}
+
 export type LiveSessionStatus =
   | 'idle'
   | 'connecting'
@@ -74,6 +90,8 @@ export class GeminiLiveService {
   private eventListeners: Map<string, Set<EventCallback>> = new Map();
   private audioChunkSubscription: EmitterSubscription | null = null;
   private nativeEventEmitter: NativeEventEmitter | null = null;
+  /** When queued reply audio finishes playing (epoch ms); 0 when silent. */
+  private playbackEndsAt = 0;
 
   constructor(options: GeminiLiveOptions = {}) {
     this.apiKey = options.apiKey || Config.GEMINI_API_KEY;
@@ -211,6 +229,7 @@ export class GeminiLiveService {
   }
 
   private cleanup(): void {
+    this.playbackEndsAt = 0;
     if (this.audioChunkSubscription) {
       this.audioChunkSubscription.remove();
       this.audioChunkSubscription = null;
@@ -269,11 +288,12 @@ export class GeminiLiveService {
   public sendAudioChunk(base64Data: string): void {
     if (!this.ws || this.ws.readyState !== 1) return;
 
+    const jarvisAudible = Date.now() < this.playbackEndsAt + ECHO_TAIL_MS;
     const audioPayload = {
       realtimeInput: {
         audio: {
           mimeType: 'audio/pcm;rate=16000',
-          data: base64Data,
+          data: jarvisAudible ? toSilence(base64Data) : base64Data,
         },
       },
     };
@@ -297,6 +317,13 @@ export class GeminiLiveService {
     };
 
     this.ws.send(JSON.stringify(textPayload));
+  }
+
+  /** Chunks arrive faster than real time, so playback ends after all of them have played. */
+  private trackPlayback(inlineData: { mimeType?: string; data: string }): void {
+    const rate = Number(/rate=(\d+)/.exec(inlineData.mimeType ?? '')?.[1]) || 24000;
+    const durationMs = (base64ByteLength(inlineData.data) / 2 / rate) * 1000;
+    this.playbackEndsAt = Math.max(Date.now(), this.playbackEndsAt) + durationMs;
   }
 
   private parseEventData(data: unknown): Record<string, unknown> | Promise<Record<string, unknown> | null> | null {
@@ -352,6 +379,7 @@ export class GeminiLiveService {
         if (NativeModules.LiveAudioModule) {
           NativeModules.LiveAudioModule.stopAudioPlayback();
         }
+        this.playbackEndsAt = 0;
         this.setStatus('listening');
         return;
       }
@@ -366,6 +394,7 @@ export class GeminiLiveService {
               if (inlineData?.data && NativeModules.LiveAudioModule) {
                 this.setStatus('speaking');
                 NativeModules.LiveAudioModule.playAudioChunk(inlineData.data);
+                this.trackPlayback(inlineData);
               }
             }
           }
