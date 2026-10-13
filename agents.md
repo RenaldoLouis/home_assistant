@@ -429,6 +429,15 @@ Stats: 23 obs (6,319t read) | 364,986t work | 98% savings
   - Fix (user chose half-duplex over Android echo cancellation): `GeminiLiveService` projects the playback end from chunk byte length / MIME rate, and `sendAudioChunk` sends same-length PCM silence until end + `ECHO_TAIL_MS` (300). `interrupted` / session end clears it. Trade-off: no voice barge-in; "Stop conversation" stops playback
   - Tests: 2 new cases in `GeminiLiveService.test.ts` (fake timers). Mutation-checked that the interruption-reset test fails without the reset. Docs: echo section in `JarvisAssistant/docs/voice-latency.md`
 
+### Oct 13, 2026
+🟣 Investment transaction type, separate from spending (branch `feature/investment-type`)
+  - User decisions: investments never touch actual spend / net saved (shown on their own as `Invested: Rp …`); `Investment` category mirrors Income (category ↔ type pairing); no notification auto-detection for now (needs real investment notification samples first)
+  - New `src/expenses/transactionTypes.ts` owns the category ↔ type rules (`parseTransactionType`, `transactionTypeOf`, `pairedType`, `reclassify`). Replaced the copies of the Income checks in `ExpenseEditor`, `expenseEditing`, `App.onUpdateExpense` and `toEditableExpense`
+  - `buildDayReport`: `investedTotal`, `investmentCount`, `weekInvestedTotal`, per-day `invested`. `buildMonthRecap` / `summarizeMonthRecap`: `investedTotal` / `investmentCount` (`invested` in the tool output). Investments are excluded from every spending figure, including the previous-month comparison
+  - UI: three-way type switcher in the editor; `Invested` badge + `N invested` count (day); `… invested` breakdown (week); `Invested · Rp …` (month card) and `Rp … invested · N investments` (month sheet); trend icon + `Colors.invest` / `Colors.investSoft` (slate `#2F5D73` on `#E2ECF0`, 6:1 contrast)
+  - Jarvis: `update_expense` accepts `type: "investment"` and rejects unknown types without writing; daily recap, today's context and the monthly recap report investments separately; the system instruction says investments are not spending
+  - `firestore.rules`: `type in ['expense', 'income', 'investment']`. **Must be published in the Firebase Console** (no `firebase.json` in the repo), or investment saves fail with permission-denied
+  - Tests: new `transactionTypes.test.ts` + summary/recap/editing/category/dashboard/App cases (17 suites, 139 tests). Mutation-checked that the previous-month comparison test fails if investments leak in. tsc clean, no new lint warnings. Docs: `JarvisAssistant/docs/transaction-types.md`; architecture, monthly-recap, notification-reader and progress docs updated
 
 
 Access 365k tokens of past work via get_observations([IDs]) or mem-search skill.

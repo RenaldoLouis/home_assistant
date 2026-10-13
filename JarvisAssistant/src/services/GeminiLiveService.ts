@@ -59,6 +59,9 @@ export function buildJarvisSystemInstruction(spendingContext?: string): string {
     'MONTHLY SPENDING:',
     '- For spending this month, a comparison with last month, or the highest-spending day or week, call get_monthly_recap (month as YYYY-MM, omit for this month).',
     '- While a month is in progress, its comparison covers the same days of the previous month; say so when comparing.',
+    'INVESTMENTS:',
+    '- Money the user invests (stocks, mutual funds, gold, crypto) is not spending. Never add it to spending totals; mention it separately as invested.',
+    '- When the user says a transaction is an investment, call update_expense with type="investment".',
   ];
 
   if (spendingContext && spendingContext.trim()) {

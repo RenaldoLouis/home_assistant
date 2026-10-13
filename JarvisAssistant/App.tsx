@@ -42,6 +42,11 @@ import {
   summarizeMonthRecap,
 } from './src/expenses/monthRecap';
 import { buildExpenseUpdate } from './src/expenses/expenseEditing';
+import {
+  pairedType,
+  parseTransactionType,
+  reclassify,
+} from './src/expenses/transactionTypes';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Colors } from './src/theme/colors';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
@@ -148,11 +153,19 @@ function JarvisMainContent() {
           report.incomeTotal > 0
             ? ` (actual spend: IDR ${report.netSpend.toLocaleString('id-ID')})`
             : '';
+        const investedPart =
+          report.investedTotal > 0
+            ? `; you also invested IDR ${report.investedTotal.toLocaleString(
+                'id-ID',
+              )}, which is not counted as spending`
+            : '';
         return `${prefix}For ${dayKey(
           date,
         )}, you have recorded IDR ${report.total.toLocaleString(
           'id-ID',
-        )} across ${report.expenseCount} expenses${incomePart}${actualPart}.`;
+        )} across ${
+          report.expenseCount
+        } expenses${incomePart}${actualPart}${investedPart}.`;
 
       },
       onPlayMusic: async () => {
@@ -198,25 +211,28 @@ function JarvisMainContent() {
             message: `Expense with ID ${expense_id} not found.`,
           };
         }
+        const requestedType = type ? parseTransactionType(type) : undefined;
+        if (requestedType === null) {
+          return {
+            success: false,
+            message: 'Type must be "expense", "income", or "investment".',
+          };
+        }
         const updateData: Record<string, unknown> = {
           updatedAt: serverTimestamp(),
         };
-        if (category) {
-          updateData.category = category.trim();
-          if (category.trim().toLowerCase() === 'income') {
-            updateData.type = 'income';
-          } else if (
-            expense.category?.toLowerCase() === 'income' ||
-            expense.type === 'income'
-          ) {
-            updateData.type = 'expense';
+        if (category?.trim() || requestedType) {
+          const next = reclassify(
+            { category: expense.category, type: expense.type ?? 'expense' },
+            { category: category?.trim() || undefined, type: requestedType },
+          );
+          if (next.category !== expense.category) {
+            updateData.category = next.category;
           }
+          updateData.type = next.type;
         }
         if (note !== undefined) {
           updateData.note = note.trim();
-        }
-        if (type) {
-          updateData.type = type === 'income' ? 'income' : 'expense';
         }
         try {
           const expenseRef = doc(
@@ -228,8 +244,10 @@ function JarvisMainContent() {
           return {
             success: true,
             message: `Successfully updated expense ${expense_id}${
-              category ? ` to category ${category}` : ''
-            }${note ? ` with note "${note}"` : ''}.`,
+              updateData.category ? ` to category ${updateData.category}` : ''
+            }${requestedType ? ` as ${requestedType}` : ''}${
+              note ? ` with note "${note}"` : ''
+            }.`,
           };
         } catch (error) {
           return {
@@ -310,6 +328,12 @@ function JarvisMainContent() {
             'id-ID',
           )})`
         : ''
+    }${
+      todayReport.investedTotal > 0
+        ? `; invested IDR ${todayReport.investedTotal.toLocaleString(
+            'id-ID',
+          )} (investments are not spending)`
+        : ''
     }.`;
 
     if (todayReport.expenses.length === 0) {
@@ -321,7 +345,7 @@ function JarvisMainContent() {
         hour: '2-digit',
         minute: '2-digit',
       });
-      const typeStr = item.type === 'income' ? 'Income (+)' : 'Expense';
+      const typeStr = TYPE_LABELS[item.type ?? 'expense'];
       const noteStr = item.note ? `, note: "${item.note}"` : ', no note';
       return `${index + 1}. [ID: ${item.id}] ${typeStr} IDR ${item.amount.toLocaleString(
         'id-ID',
@@ -671,6 +695,12 @@ export default function App(): React.JSX.Element {
   );
 }
 
+const TYPE_LABELS: Record<TransactionType, string> = {
+  expense: 'Expense',
+  income: 'Income (+)',
+  investment: 'Investment',
+};
+
 function toEditableExpense(
   expenseId: string,
   data: Record<string, unknown>,
@@ -684,9 +714,7 @@ function toEditableExpense(
 
   const category = normalizeExpenseCategory(data.category);
   const type: TransactionType =
-    data.type === 'income' || category.toLowerCase() === 'income'
-      ? 'income'
-      : 'expense';
+    pairedType(category) ?? parseTransactionType(data.type) ?? 'expense';
   const note = normalizeString(data.note);
 
   return {

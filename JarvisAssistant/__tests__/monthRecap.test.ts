@@ -41,6 +41,46 @@ describe('buildMonthRecap', () => {
     expect(dayKey(recap.monthStart)).toBe('2026-10-01');
   });
 
+  it('totals investments separately, outside spending, peaks, categories and the comparison', () => {
+    const recap = buildMonthRecap(
+      [
+        { amount: 40000, category: 'Food', date: at(9, 2) },
+        {
+          amount: 2000000,
+          type: 'investment',
+          category: 'Investment',
+          date: at(9, 3),
+        },
+        {
+          amount: 500000,
+          type: 'investment',
+          category: 'Investment',
+          date: at(9, 5),
+        },
+        { amount: 100000, type: 'income', date: at(9, 5) },
+        { amount: 30000, date: at(8, 2) },
+        { amount: 900000, type: 'investment', date: at(8, 3) },
+      ],
+      OCT_6,
+      OCT_6,
+    );
+
+    expect(recap.total).toBe(40000);
+    expect(recap.expenseCount).toBe(1);
+    expect(recap.investedTotal).toBe(2500000);
+    expect(recap.investmentCount).toBe(2);
+    expect(recap.netSpend).toBe(-60000); // 40000 spent - 100000 received
+    expect(recap.dailyAverage).toBe(6667);
+    expect(recap.days[2].total).toBe(0);
+    expect(dayKey(recap.peakDay!.date)).toBe('2026-10-02');
+    expect(recap.peakWeek!.total).toBe(40000);
+    expect(recap.categories).toEqual([
+      { category: 'Food', total: 40000, share: 1 },
+    ]);
+    expect(recap.comparison.previousPeriodTotal).toBe(30000);
+    expect(recap.comparison.previousMonthTotal).toBe(30000);
+  });
+
   it('compares the month so far with the same days of the previous month', () => {
     const recap = buildMonthRecap(
       [
@@ -204,6 +244,7 @@ describe('summarizeMonthRecap', () => {
         { amount: 300000, category: 'Food', date: at(9, 2) },
         { amount: 50000, category: 'Transport', date: at(9, 5) },
         { amount: 20000, type: 'income', date: at(9, 5) },
+        { amount: 750000, type: 'investment', date: at(9, 6) },
       ],
       OCT_6,
       OCT_6,
@@ -218,6 +259,8 @@ describe('summarizeMonthRecap', () => {
       totalSpent: 350000,
       incomeReceived: 20000,
       netSpend: 330000,
+      invested: 750000,
+      investmentCount: 1,
       expenseCount: 2,
       dailyAverage: 58333,
       comparison: {

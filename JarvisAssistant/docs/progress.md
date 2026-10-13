@@ -1,7 +1,7 @@
 # Jarvis Assistant — Production Release & Progress Roadmap
 
 > **Status Tracker & Living Milestone Document**  
-> **Last Updated**: October 6, 2026  
+> **Last Updated**: October 13, 2026  
 > **Target Release**: Google Play Store (Android Bare Workflow)  
 > **Design Philosophy**: Warm Linen & Botanical Editorial ([docs/design-system.md](design-system.md))
 
@@ -83,6 +83,18 @@
 - [x] Jarvis voice tool `get_monthly_recap`.
 - [x] Unit + screen tests (16 suites, 110 tests). Details: [monthly-recap.md](monthly-recap.md).
 - [ ] Verify chart and card layout on the Samsung Galaxy S24 FE release build.
+
+---
+
+### Feature: Investment Transaction Type
+**Status**: `BUILT` (October 13, 2026, branch `feature/investment-type`) — Firestore rules must be published before investments can be saved on device
+- [x] Third type `investment` alongside expense and income; `Investment` default category paired with it, like Income
+- [x] Kept out of spending everywhere: day/week totals, bars, month total, daily average, peaks, categories, month-over-month comparison
+- [x] Own totals: day badge, week breakdown, month card and sheet, Jarvis daily/monthly recaps and context
+- [x] Editor type switcher (Expense / Income / Investment); `update_expense` accepts `type: "investment"`
+- [ ] Publish updated `firestore.rules` in the Firebase Console
+- [ ] Verify on the S24 FE
+- Details: [transaction-types.md](transaction-types.md)
 
 ---
 

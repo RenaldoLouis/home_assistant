@@ -2,10 +2,17 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Text, TextInput, View, StyleSheet } from 'react-native';
 import { EditableExpense, ExpenseEdit, TransactionType } from '../expenses/types';
 import { buildExpenseUpdate } from '../expenses/expenseEditing';
+import { pairedType, reclassify } from '../expenses/transactionTypes';
 import { AnimatedPressable } from './AnimatedPressable';
 import { Calendar } from './Calendar';
 import { Sheet } from './Sheet';
 import { Colors } from '../theme/colors';
+
+const TYPE_OPTIONS: { type: TransactionType; label: string }[] = [
+  { type: 'expense', label: 'Expense' },
+  { type: 'income', label: 'Income (+)' },
+  { type: 'investment', label: 'Investment' },
+];
 
 export function ExpenseEditor({
   expense,
@@ -20,12 +27,9 @@ export function ExpenseEditor({
   onDelete?: (id: string) => Promise<void>;
   onClose: () => void;
 }) {
-  const initialType: TransactionType =
-    expense.type === 'income' ||
-    expense.category.trim().toLowerCase() === 'income'
-      ? 'income'
-      : 'expense';
-  const [type, setType] = useState<TransactionType>(initialType);
+  const [type, setType] = useState<TransactionType>(
+    pairedType(expense.category) ?? expense.type ?? 'expense',
+  );
   const [amount, setAmount] = useState(String(expense.amount));
   const [category, setCategory] = useState(expense.category);
   const [date, setDate] = useState(new Date(expense.date));
@@ -45,43 +49,20 @@ export function ExpenseEditor({
     };
   }, []);
 
-  const handleSelectCategory = (option: string) => {
-    setCategory(option);
-    if (option.trim().toLowerCase() === 'income') {
-      setType('income');
-    } else if (type === 'income') {
-      setType('expense');
-    }
+  const classify = (change: { category?: string; type?: TransactionType }) => {
+    const next = reclassify({ category, type }, change);
+    setCategory(next.category);
+    setType(next.type);
   };
-
-  const handleSelectType = (selectedType: TransactionType) => {
-    setType(selectedType);
-    if (selectedType === 'income') {
-      if (
-        category.trim().toLowerCase() !== 'income' &&
-        category === 'Uncategorized'
-      ) {
-        setCategory('Income');
-      }
-    } else {
-      if (category.trim().toLowerCase() === 'income') {
-        setCategory('Uncategorized');
-      }
-    }
-  };
+  const handleSelectCategory = (option: string) => classify({ category: option });
 
   const save = async () => {
     if (inFlight.current) return;
-    const effectiveType: TransactionType =
-      type === 'income' || category.trim().toLowerCase() === 'income'
-        ? 'income'
-        : type;
-
     const edit: ExpenseEdit = {
       amount: /^\d+$/.test(amount.trim()) ? Number(amount) : NaN,
       category,
       date: date.toISOString(),
-      type: effectiveType,
+      type,
       note: note.trim(),
     };
 
@@ -136,46 +117,32 @@ export function ExpenseEditor({
 
       <Text style={styles.label}>Transaction type</Text>
       <View style={styles.typeSelector}>
-        <AnimatedPressable
-          disabled={saving || deleting}
-          accessibilityRole="button"
-          accessibilityLabel="Set as expense"
-          accessibilityState={{ selected: type === 'expense' }}
-          onPress={() => handleSelectType('expense')}
-          style={[
-            styles.typeOption,
-            type === 'expense' && styles.typeOptionSelected,
-          ]}
-        >
-          <Text
-            style={[
-              styles.typeOptionText,
-              type === 'expense' && styles.typeOptionTextSelected,
-            ]}
-          >
-            Expense
-          </Text>
-        </AnimatedPressable>
-        <AnimatedPressable
-          disabled={saving || deleting}
-          accessibilityRole="button"
-          accessibilityLabel="Set as income"
-          accessibilityState={{ selected: type === 'income' }}
-          onPress={() => handleSelectType('income')}
-          style={[
-            styles.typeOption,
-            type === 'income' && styles.typeOptionSelectedIncome,
-          ]}
-        >
-          <Text
-            style={[
-              styles.typeOptionText,
-              type === 'income' && styles.typeOptionTextSelectedIncome,
-            ]}
-          >
-            Income (+)
-          </Text>
-        </AnimatedPressable>
+        {TYPE_OPTIONS.map(option => {
+          const selected = type === option.type;
+          return (
+            <AnimatedPressable
+              key={option.type}
+              disabled={saving || deleting}
+              accessibilityRole="button"
+              accessibilityLabel={`Set as ${option.type}`}
+              accessibilityState={{ selected }}
+              onPress={() => classify({ type: option.type })}
+              style={[
+                styles.typeOption,
+                selected && selectedTypeStyles[option.type].option,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.typeOptionText,
+                  selected && selectedTypeStyles[option.type].text,
+                ]}
+              >
+                {option.label}
+              </Text>
+            </AnimatedPressable>
+          );
+        })}
       </View>
 
       <Text style={styles.label}>Amount in rupiah</Text>
@@ -345,6 +312,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.cardBorder,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 8,
   },
   typeOptionSelected: {
     backgroundColor: Colors.accent,
@@ -355,6 +323,7 @@ const styles = StyleSheet.create({
     borderColor: '#4CAF50',
   },
   typeOptionText: {
+    textAlign: 'center',
     fontSize: 14,
     fontWeight: '500',
     color: Colors.textSecondary,
@@ -365,6 +334,14 @@ const styles = StyleSheet.create({
   },
   typeOptionTextSelectedIncome: {
     color: '#2E7D32',
+    fontWeight: '600',
+  },
+  typeOptionSelectedInvestment: {
+    backgroundColor: Colors.investSoft,
+    borderColor: Colors.invest,
+  },
+  typeOptionTextSelectedInvestment: {
+    color: Colors.invest,
     fontWeight: '600',
   },
   input: {
@@ -484,3 +461,18 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
+
+const selectedTypeStyles = {
+  expense: {
+    option: styles.typeOptionSelected,
+    text: styles.typeOptionTextSelected,
+  },
+  income: {
+    option: styles.typeOptionSelectedIncome,
+    text: styles.typeOptionTextSelectedIncome,
+  },
+  investment: {
+    option: styles.typeOptionSelectedInvestment,
+    text: styles.typeOptionTextSelectedInvestment,
+  },
+};

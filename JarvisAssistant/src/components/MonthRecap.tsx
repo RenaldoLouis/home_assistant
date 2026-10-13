@@ -139,6 +139,11 @@ export function MonthRecapCard({
             : `No spending recorded${recap.isComplete ? '' : ' yet'}`}
         </Text>
       )}
+      {ready && recap.investedTotal > 0 && (
+        <Text style={styles.meta}>
+          {`Invested · ${money(recap.investedTotal)}`}
+        </Text>
+      )}
     </AnimatedPressable>
   );
 }
@@ -229,6 +234,14 @@ export function MonthRecapDetails({
                 ? `net saved ${money(Math.abs(recap.netSpend))}`
                 : `actual spend ${money(recap.netSpend)}`
             }`}
+          </Text>
+        )}
+        {recap.investedTotal > 0 && (
+          <Text style={styles.meta}>
+            {`${money(recap.investedTotal)} invested · ${plural(
+              recap.investmentCount,
+              'investment',
+            )}`}
           </Text>
         )}
       </View>

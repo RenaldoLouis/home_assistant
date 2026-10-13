@@ -1,5 +1,5 @@
 export const UNCATEGORIZED_EXPENSE_CATEGORY = 'Uncategorized';
-export const DEFAULT_EXPENSE_CATEGORIES = ['Income', 'Dating'];
+export const DEFAULT_EXPENSE_CATEGORIES = ['Income', 'Investment', 'Dating'];
 
 export function normalizeExpenseCategory(value: unknown): string {
   if (typeof value !== 'string') {

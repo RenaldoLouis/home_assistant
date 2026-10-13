@@ -43,7 +43,8 @@ export const JARVIS_TOOL_DECLARATIONS: FunctionDeclaration[] = [
   },
   {
     name: 'get_daily_recap',
-    description: 'Get a recap of all daily expenses and spending tracked today.',
+    description:
+      'Get a recap of a day\'s spending, income received, and money invested. Investments are reported separately and are not spending.',
     parameters: {
       type: 'OBJECT',
       properties: {
@@ -66,7 +67,8 @@ export const JARVIS_TOOL_DECLARATIONS: FunctionDeclaration[] = [
         },
         category: {
           type: 'STRING',
-          description: 'The updated category (e.g. "Food", "Coffee", "Dating", "Income").',
+          description:
+            'The updated category (e.g. "Food", "Coffee", "Dating", "Income", "Investment").',
         },
         note: {
           type: 'STRING',
@@ -74,7 +76,8 @@ export const JARVIS_TOOL_DECLARATIONS: FunctionDeclaration[] = [
         },
         type: {
           type: 'STRING',
-          description: 'Transaction type: either "expense" or "income".',
+          description:
+            'Transaction type: "expense", "income", or "investment". Use "investment" for money moved into stocks, mutual funds, gold, or crypto; it is not spending.',
         },
       },
       required: ['expense_id'],
@@ -110,7 +113,7 @@ export const JARVIS_TOOL_DECLARATIONS: FunctionDeclaration[] = [
   {
     name: 'get_monthly_recap',
     description:
-      'Get a spending recap for a calendar month: total spent, comparison with the previous month, highest-spending day and week, weekly totals, and top categories.',
+      'Get a spending recap for a calendar month: total spent, income received, money invested (separate from spending), comparison with the previous month, highest-spending day and week, weekly totals, and top categories.',
     parameters: {
       type: 'OBJECT',
       properties: {

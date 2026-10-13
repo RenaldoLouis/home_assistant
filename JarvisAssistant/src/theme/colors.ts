@@ -10,6 +10,8 @@ export const Colors = {
   danger: '#B34838',
   coral: '#D65743',
   mint: '#E4EFE8',
+  invest: '#2F5D73',
+  investSoft: '#E2ECF0',
   orbIdle: '#176B61',
   orbListening: '#B77D28',
   orbSpeaking: '#176B61',

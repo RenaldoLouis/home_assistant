@@ -77,7 +77,7 @@ interface DashboardProps {
       amount: number;
       category: string;
       date: string;
-      type?: 'expense' | 'income';
+      type?: 'expense' | 'income' | 'investment';
       note?: string;
     },
   ) => Promise<void>;
@@ -577,3 +577,82 @@ test('starts daily review when onStartDailyReview is called', async () => {
   await ReactTestRenderer.act(async () => renderer!.unmount());
 });
 
+
+test('investments reach the dashboard and Jarvis separately from spending', async () => {
+  const today = new Date();
+  mockExpenseDocs = [
+    {
+      id: 'lunch',
+      data: () => ({
+        amount: 25000,
+        category: 'Food',
+        date: new Date(today.setHours(12, 0, 0, 0)).toISOString(),
+      }),
+    },
+    {
+      id: 'stocks',
+      data: () => ({
+        amount: 1500000,
+        category: 'Investment',
+        merchant: 'Bibit',
+        type: 'investment',
+        date: new Date(today.setHours(13, 0, 0, 0)).toISOString(),
+      }),
+    },
+    {
+      id: 'unsorted',
+      data: () => ({
+        amount: 80000,
+        category: 'Uncategorized',
+        date: new Date(today.setHours(14, 0, 0, 0)).toISOString(),
+      }),
+    },
+  ];
+  let renderer: ReactTestRenderer.ReactTestRenderer;
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(<App />);
+  });
+
+  const latestProps =
+    mockDashboardScreen.mock.calls[mockDashboardScreen.mock.calls.length - 1][0];
+  expect(
+    latestProps.expenses.find(expense => expense.id === 'stocks'),
+  ).toMatchObject({ type: 'investment', category: 'Investment' });
+  expect(latestProps.categoryOptions).toContain('Investment');
+
+  const handlers: ToolExecutionHandlers =
+    mockSetToolHandlers.mock.calls[
+      mockSetToolHandlers.mock.calls.length - 1
+    ][0];
+  const recap = await handlers.onGetDailyRecap?.();
+  expect(recap).toContain('IDR 105.000 across 2 expenses');
+  expect(recap).toContain('invested IDR 1.500.000');
+
+  const context = mockSetSystemInstruction.mock.calls
+    .map(call => String(call[0]))
+    .pop();
+  expect(context).toContain('invested IDR 1.500.000');
+  expect(context).toContain('[ID: stocks] Investment IDR 1.500.000');
+
+  const result = await handlers.onUpdateExpense?.({
+    expense_id: 'unsorted',
+    type: 'investment',
+  });
+  expect(result?.success).toBe(true);
+  expect(updateDoc).toHaveBeenLastCalledWith(mockExpenseDocRef, {
+    updatedAt: 'SERVER_TIMESTAMP',
+    category: 'Investment',
+    type: 'investment',
+  });
+
+  (updateDoc as jest.Mock).mockClear();
+  const rejected = await handlers.onUpdateExpense?.({
+    expense_id: 'unsorted',
+    type: 'savings',
+  });
+  expect(rejected).toMatchObject({ success: false });
+  expect(rejected?.message).toContain('investment');
+  expect(updateDoc).not.toHaveBeenCalled();
+
+  await ReactTestRenderer.act(async () => renderer!.unmount());
+});

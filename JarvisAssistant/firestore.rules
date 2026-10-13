@@ -14,7 +14,7 @@ service cloud.firestore {
 
     function isValidExpense(data) {
       return data.amount is number && data.amount > 0
-        && (data.type == 'expense' || data.type == 'income')
+        && data.type in ['expense', 'income', 'investment']
         && (data.category is string || data.category == null)
         && (data.merchant is string || data.merchant == null);
     }

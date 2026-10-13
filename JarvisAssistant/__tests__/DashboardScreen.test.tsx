@@ -429,3 +429,84 @@ test('the month card waits for spending data before showing totals', async () =>
   expect(byTestId('month-recap-card').props.disabled).toBe(true);
   expect(visibleText()).not.toContain('Rp 35.000');
 });
+
+const withInvestment = [
+  ...props.expenses,
+  {
+    id: 'inv-1',
+    amount: 300000,
+    merchant: 'Bibit',
+    category: 'Investment',
+    bank: 'BCA',
+    type: 'investment' as const,
+    date: new Date(2026, 8, 10, 13).toISOString(),
+  },
+];
+
+test('investments show on their own across the day, week and month without counting as spending', async () => {
+  await act(async () => {
+    screen.update(<DashboardScreen {...props} expenses={withInvestment} />);
+  });
+
+  expect(
+    screen.root.findAllByProps({
+      accessibilityLabel: 'Edit Investment, Rp 300.000',
+    }).length,
+  ).toBeGreaterThan(0);
+  expect(visibleText()).toEqual(
+    expect.arrayContaining([
+      // Day: spending stays Rp 25.000, investment has its own badge
+      'Rp 25.000',
+      '1 expenses · 1 invested',
+      'Invested: Rp 300.000',
+      // Week: Rp 35.000 spent, investment listed beside it
+      'Rp 35.000 spent · Rp 300.000 invested',
+      'Rp 35.000',
+      // Month card
+      'Invested · Rp 300.000',
+    ]),
+  );
+  // No income, so no actual-spend badge
+  expect(visibleText().some(text => text.startsWith('Actual spend'))).toBe(
+    false,
+  );
+
+  await act(async () => byTestId('month-recap-card').props.onPress());
+  expect(visibleText()).toEqual(
+    expect.arrayContaining(['Rp 300.000 invested · 1 investment']),
+  );
+});
+
+test('an expense editor marks a transaction as an investment', async () => {
+  await press('Edit Food, Rp 25.000');
+  await press('Set as investment');
+  const saveButton = screen.root.findAll(
+    node =>
+      node.props.onPress &&
+      node.findAllByProps({ children: 'Save changes' }).length > 0,
+  )[0];
+  await act(async () => {
+    await saveButton.props.onPress();
+  });
+  expect(save).toHaveBeenCalledWith('one', {
+    amount: 25000,
+    category: 'Food',
+    date: props.expenses[0].date,
+    type: 'investment',
+    note: '',
+  });
+});
+
+test('an expense editor saves the Investment category with type: investment', async () => {
+  await press('Edit Food, Rp 25.000');
+  await act(async () => {
+    screen.root
+      .findAllByType(TextInput)
+      .find(node => node.props.accessibilityLabel === 'Category')!
+      .props.onChangeText('Investment');
+  });
+  expect(
+    screen.root.findAllByProps({ accessibilityLabel: 'Set as investment' })[0]
+      .props.accessibilityState,
+  ).toMatchObject({ selected: true });
+});

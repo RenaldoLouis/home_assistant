@@ -322,9 +322,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
           </Text>
           <Text style={s.count}>
             {ready
-              ? report.incomeCount > 0
-                ? `${report.expenseCount} expenses · ${report.incomeCount} income`
-                : `${report.expenseCount} expenses`
+              ? [
+                  `${report.expenseCount} expenses`,
+                  report.incomeCount > 0 && `${report.incomeCount} income`,
+                  report.investmentCount > 0 &&
+                    `${report.investmentCount} invested`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
               : '—'}
           </Text>
         </View>
@@ -336,34 +341,45 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
         >
           {ready ? money(report.total) : '—'}
         </Text>
-        {ready && report.incomeTotal > 0 && (
+        {ready && (report.incomeTotal > 0 || report.investedTotal > 0) && (
           <View style={s.netSummaryRow}>
-            <View style={s.incomeBadgeRow}>
-              <Text style={s.incomeBadgeText}>
-                {`Received: +${money(report.incomeTotal)}`}
-              </Text>
-            </View>
-            <View
-              style={[
-                s.actualSpendBadge,
-                report.netSpend < 0
-                  ? s.actualSpendBadgeSurplus
-                  : s.actualSpendBadgeDeficit,
-              ]}
-            >
-              <Text
-                style={[
-                  s.actualSpendText,
-                  report.netSpend < 0
-                    ? s.actualSpendTextSurplus
-                    : s.actualSpendTextDeficit,
-                ]}
-              >
-                {report.netSpend < 0
-                  ? `Net saved: +${money(Math.abs(report.netSpend))}`
-                  : `Actual spend: ${money(report.netSpend)}`}
-              </Text>
-            </View>
+            {report.incomeTotal > 0 && (
+              <>
+                <View style={s.incomeBadgeRow}>
+                  <Text style={s.incomeBadgeText}>
+                    {`Received: +${money(report.incomeTotal)}`}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    s.actualSpendBadge,
+                    report.netSpend < 0
+                      ? s.actualSpendBadgeSurplus
+                      : s.actualSpendBadgeDeficit,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      s.actualSpendText,
+                      report.netSpend < 0
+                        ? s.actualSpendTextSurplus
+                        : s.actualSpendTextDeficit,
+                    ]}
+                  >
+                    {report.netSpend < 0
+                      ? `Net saved: +${money(Math.abs(report.netSpend))}`
+                      : `Actual spend: ${money(report.netSpend)}`}
+                  </Text>
+                </View>
+              </>
+            )}
+            {report.investedTotal > 0 && (
+              <View style={s.investedBadge}>
+                <Text style={s.investedBadgeText}>
+                  {`Invested: ${money(report.investedTotal)}`}
+                </Text>
+              </View>
+            )}
           </View>
         )}
         <View style={s.summaryDivider} />
@@ -379,13 +395,20 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
                     year: 'numeric',
                   })}`}
             </Text>
-            {ready && report.weekIncomeTotal > 0 && (
-              <Text style={s.weekBreakdown}>
-                {`${money(report.weekTotal)} spent · +${money(
-                  report.weekIncomeTotal,
-                )} earned`}
-              </Text>
-            )}
+            {ready &&
+              (report.weekIncomeTotal > 0 || report.weekInvestedTotal > 0) && (
+                <Text style={s.weekBreakdown}>
+                  {[
+                    `${money(report.weekTotal)} spent`,
+                    report.weekIncomeTotal > 0 &&
+                      `+${money(report.weekIncomeTotal)} earned`,
+                    report.weekInvestedTotal > 0 &&
+                      `${money(report.weekInvestedTotal)} invested`,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Text>
+              )}
           </View>
           <View
             style={
@@ -560,6 +583,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
                       style={[
                         s.expenseAmount,
                         isIncome && s.incomeAmount,
+                        item.type === 'investment' && s.investedAmount,
                       ]}
                     >
                       {`${amountPrefix}${money(item.amount)}`}

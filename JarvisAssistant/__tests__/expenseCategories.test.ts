@@ -4,13 +4,14 @@ import {
 } from '../src/expenses/categories';
 
 describe('expense categories', () => {
-  it('keeps Income and Dating as default editable categories', () => {
-    expect(DEFAULT_EXPENSE_CATEGORIES).toEqual(['Income', 'Dating']);
+  it('keeps Income, Investment and Dating as default editable categories', () => {
+    expect(DEFAULT_EXPENSE_CATEGORIES).toEqual(['Income', 'Investment', 'Dating']);
   });
 
   it('combines saved categories with defaults and a fallback option', () => {
     expect(buildExpenseCategoryOptions(['Food & Beverage', 'Dating', ''])).toEqual([
       'Income',
+      'Investment',
       'Dating',
       'Food & Beverage',
       'Uncategorized',

@@ -153,6 +153,74 @@ describe('expense summary', () => {
     expect(wed.income).toBe(30000);
     expect(wed.netSpend).toBe(50000);
   });
+
+  it('reports investments on their own, outside spending and actual spend', () => {
+    const report = buildDayReport(
+      [
+        {
+          id: 'lunch',
+          amount: 50000,
+          type: 'expense',
+          date: new Date(2026, 8, 7, 12).toISOString(),
+        },
+        {
+          id: 'salary',
+          amount: 400000,
+          type: 'income',
+          date: new Date(2026, 8, 7, 9).toISOString(),
+        },
+        {
+          id: 'stocks',
+          amount: 300000,
+          type: 'investment',
+          date: new Date(2026, 8, 7, 15).toISOString(),
+        },
+        {
+          id: 'gold',
+          amount: 1000000,
+          type: 'investment',
+          date: new Date(2026, 8, 9, 10).toISOString(),
+        },
+      ],
+      new Date(2026, 8, 7),
+    );
+
+    expect(report.total).toBe(50000);
+    expect(report.expenseCount).toBe(1);
+    expect(report.investedTotal).toBe(300000);
+    expect(report.investmentCount).toBe(1);
+    expect(report.netSpend).toBe(-350000); // 50000 spent - 400000 received
+    expect(report.expenses.map(e => e.id)).toEqual([
+      'stocks',
+      'lunch',
+      'salary',
+    ]);
+
+    expect(report.weekTotal).toBe(50000);
+    expect(report.weekInvestedTotal).toBe(1300000);
+    expect(report.weekNetSpend).toBe(-350000);
+    expect(report.week[0]).toMatchObject({ total: 50000, invested: 300000 });
+    expect(report.week[2]).toMatchObject({ total: 0, invested: 1000000 });
+  });
+
+  it('keeps investments out of the spending summary', () => {
+    const summary = buildExpenseSummary(
+      [
+        { amount: 20000, date: new Date(2026, 8, 5, 9).toISOString() },
+        {
+          amount: 500000,
+          type: 'investment',
+          date: new Date(2026, 8, 5, 10).toISOString(),
+        },
+      ],
+      new Date(2026, 8, 5, 19),
+    );
+
+    expect(summary.today).toBe(20000);
+    expect(summary.todayIncome).toBe(0);
+    expect(summary.lastWeek).toBe(20000);
+    expect(summary.lastMonth).toBe(20000);
+  });
 });
 
 it('keeps an entire local day through daylight-saving transitions', () => {

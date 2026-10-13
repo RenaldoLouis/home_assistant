@@ -1,5 +1,6 @@
 import React from 'react';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import { Colors } from '../theme/colors';
 
 type IconName =
   | 'spark'
@@ -18,7 +19,8 @@ type IconName =
   | 'lamp'
   | 'speaker'
   | 'check'
-  | 'refresh';
+  | 'refresh'
+  | 'trend';
 const paths: Partial<Record<IconName, string>> = {
   spark: 'M12 2l2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5Z',
   home: 'M3 10l9-7 9 7v10H15v-6H9v6H3Z',
@@ -34,6 +36,7 @@ const paths: Partial<Record<IconName, string>> = {
   lamp: 'M8 15c0-3-3-3-3-7a7 7 0 0114 0c0 4-3 4-3 7H8Zm1 4h6m-5 3h4',
   check: 'M5 12l4 4L19 6',
   refresh: 'M21 12a9 9 0 11-9-9c2.52 0 4.8 1.03 6.44 2.7L21 8M21 3v5h-5',
+  trend: 'M3 17l6-6 4 4 8-8M15 7h6v6',
 };
 export function Icon({
   name,
@@ -94,6 +97,12 @@ export function categoryAppearance(category: string): {
 } {
   if (/income|received|transfer\s*in/i.test(category))
     return { icon: 'wallet', color: '#1B8755', background: '#E8F6EE' };
+  if (/invest/i.test(category))
+    return {
+      icon: 'trend',
+      color: Colors.invest,
+      background: Colors.investSoft,
+    };
   if (/food|drink|meal|beverage|coffee/i.test(category))
     return { icon: 'food', color: '#196B65', background: '#E1F0EA' };
   if (/dating|love/i.test(category))

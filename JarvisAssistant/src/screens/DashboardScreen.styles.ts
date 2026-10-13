@@ -134,6 +134,18 @@ export const dashboardStyles = StyleSheet.create({
     color: '#1B8755',
     fontVariant: ['tabular-nums'],
   },
+  investedBadge: {
+    backgroundColor: Colors.investSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  investedBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.invest,
+    fontVariant: ['tabular-nums'],
+  },
   netSummaryRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -260,6 +272,9 @@ export const dashboardStyles = StyleSheet.create({
   },
   incomeAmount: {
     color: '#1B8755',
+  },
+  investedAmount: {
+    color: Colors.invest,
   },
   expenseMeta: { fontSize: 11, lineHeight: 16, color: Colors.textSecondary },
   expenseNote: {

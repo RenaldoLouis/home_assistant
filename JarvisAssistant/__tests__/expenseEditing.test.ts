@@ -78,6 +78,32 @@ test('corrects the existing expense while preserving the captured amount and cat
   ).toMatchObject({ type: 'income' });
 });
 
+test('classifies investments like income: the Investment category sets the type', () => {
+  expect(
+    buildExpenseUpdate(expense, {
+      amount: 1000000,
+      category: 'Investment',
+      date: expense.date,
+    }),
+  ).toMatchObject({ type: 'investment', category: 'Investment' });
+
+  expect(
+    buildExpenseUpdate(
+      { ...expense, category: 'Investment', type: 'investment' },
+      { amount: 1000000, category: 'Food', date: expense.date },
+    ),
+  ).toMatchObject({ type: 'expense', category: 'Food' });
+
+  expect(
+    buildExpenseUpdate(expense, {
+      amount: 1000000,
+      category: 'Gold',
+      type: 'investment',
+      date: expense.date,
+    }),
+  ).toMatchObject({ type: 'investment', category: 'Gold' });
+});
+
 test('handles custom expense note including trimming and preservation', () => {
   expect(
     buildExpenseUpdate(expense, {

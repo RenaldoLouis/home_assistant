@@ -27,8 +27,11 @@ user's full ledger). No new reads, writes, packages, or permissions.
 
 - **Timezone**: calendar boundaries follow the phone's current timezone, like
   the rest of the app (`src/expenses/dates.ts`).
-- **Spending vs income**: totals are gross spending (`type !== 'income'`).
-  Income is reported separately as `incomeTotal` and `netSpend`.
+- **Spending vs income vs investment**: totals are gross spending
+  (`type === 'expense'`). Income is reported separately as `incomeTotal` and
+  `netSpend`. Investments are reported as `investedTotal` / `investmentCount`
+  and stay out of the total, daily average, chart, peaks, categories and the
+  comparison ([transaction-types.md](transaction-types.md)).
 - **Period**: a month in progress counts day 1 through today. Future-dated
   records inside the month are excluded until their day arrives.
 - **Comparison — same period**: while a month is in progress it is compared

@@ -1,5 +1,6 @@
 import { EditableExpense, ExpenseEdit } from './types';
 import { normalizeDate } from './dates';
+import { pairedType } from './transactionTypes';
 
 export function buildExpenseUpdate(
   expense: EditableExpense,
@@ -18,26 +19,11 @@ export function buildExpenseUpdate(
   if (note.length > 500) {
     throw new Error('Note must be 500 characters or fewer.');
   }
-  let type = edit.type;
-  if (!type) {
-    if (category.toLowerCase() === 'income') {
-      type = 'income';
-    } else if (
-      (expense.category?.toLowerCase() === 'income' ||
-        expense.type === 'income') &&
-      category.toLowerCase() !== 'income'
-    ) {
-      type = 'expense';
-    } else {
-      type = expense.type ?? 'expense';
-    }
-  }
-
   return {
     amount: edit.amount,
     category,
     date: date.toISOString(),
-    type,
+    type: pairedType(category) ?? edit.type ?? 'expense',
     originalAmount: expense.originalAmount ?? expense.amount,
     originalCategory: expense.originalCategory ?? expense.category,
     note,

@@ -99,17 +99,19 @@ flowchart TD
 ### Subsystem B: Real-Time Financial Diary & Domain Logic
 Located in `src/expenses/`:
 - [types.ts](file:///Users/renaldolouis/Documents/Personal/Home%20Assistant/JarvisAssistant/src/expenses/types.ts):
-  - `EditableExpense`, `ExpenseEdit`, `TransactionType ('income' | 'expense')`.
+  - `EditableExpense`, `ExpenseEdit`, `TransactionType ('expense' | 'income' | 'investment')`.
+- [transactionTypes.ts](../src/expenses/transactionTypes.ts):
+  - Single owner of the category ↔ type rules (`parseTransactionType`, `transactionTypeOf`, `pairedType`, `reclassify`). See [transaction-types.md](transaction-types.md).
 - [dates.ts](file:///Users/renaldolouis/Documents/Personal/Home%20Assistant/JarvisAssistant/src/expenses/dates.ts):
   - Strict timezone-aware day parsing (`parseDay`, `dayKey`, `startOfDay`, `addDays`).
   - Ensures midnight boundaries follow the phone's local timezone.
 - [categories.ts](file:///Users/renaldolouis/Documents/Personal/Home%20Assistant/JarvisAssistant/src/expenses/categories.ts):
-  - Defaults: `['Income', 'Dating', 'Uncategorized']`. Dynamically merges with existing categories seen in records.
+  - Defaults: `['Income', 'Investment', 'Dating', 'Uncategorized']`. Dynamically merges with existing categories seen in records.
 - [expenseEditing.ts](file:///Users/renaldolouis/Documents/Personal/Home%20Assistant/JarvisAssistant/src/expenses/expenseEditing.ts):
   - Validates whole rupiah amounts (> 0), category lengths (≤ 60 chars), and notes (≤ 500 chars).
-  - **Category-to-Type Synchronization**: Automatically switches `type` to `'income'` when category is set to `"Income"`, and reverts to `'expense'` when switched away. Respects explicit manual `type` overrides.
+  - **Category-to-Type Synchronization**: `type = pairedType(category) ?? edit.type ?? 'expense'` — the `Income` / `Investment` categories always set their type; otherwise the explicit type is kept.
 - [expenseSummary.ts](file:///Users/renaldolouis/Documents/Personal/Home%20Assistant/JarvisAssistant/src/expenses/expenseSummary.ts):
-  - `buildDayReport(expenses, selectedDate)`: Produces day totals, income totals, net spend (`total - incomeTotal`), week breakdown, and Monday-first day columns.
+  - `buildDayReport(expenses, selectedDate)`: Produces day totals, income totals, net spend (`total - incomeTotal`), invested totals (`investedTotal`, `weekInvestedTotal`, per-day `invested` — never part of spending or net spend), week breakdown, and Monday-first day columns.
 
 ### Subsystem C: UI / UX & Dashboard
 Located in `src/screens/` and `src/components/`:
@@ -117,9 +119,10 @@ Located in `src/screens/` and `src/components/`:
   - Weekly scrollable day track with active indicator dots.
   - Spend bar chart with compact formatting (`rb`, `jt`).
   - Income badges (`Received: +Rp ...`) and Net spend calculation (`Actual spend` / `Net saved`).
+  - Investment badge (`Invested: Rp ...`) and week breakdown (`Rp … invested`), kept out of spending.
   - **"Review with Jarvis"** spark chip: Trigger for the daily AI review flow.
 - [ExpenseEditor.tsx](file:///Users/renaldolouis/Documents/Personal/Home%20Assistant/JarvisAssistant/src/components/ExpenseEditor.tsx):
-  - Segmented Type Switcher: `Expense` vs `Income (+)`.
+  - Segmented Type Switcher: `Expense` / `Income (+)` / `Investment`.
   - Amount, category chips, custom category input, calendar picker, and multi-line notes.
   - **In-Modal Confirmation for Deletion**: Tap "Delete expense" -> dedicated overlay asking for confirmation (`Delete` / `Cancel`) with destructive red styling.
 - [JarvisOrb.tsx](file:///Users/renaldolouis/Documents/Personal/Home%20Assistant/JarvisAssistant/src/components/JarvisOrb.tsx):
@@ -258,7 +261,7 @@ npm run lint
 ### Critical Rules for Future AI Agents:
 1. **Never bypass `expenseEditing.ts` or `expenseSummary.ts`**:
    Any new feature modifying spending math or expense updates MUST go through these pure functions and have corresponding tests in `__tests__/`.
-2. **Always respect the Income / Expense distinction**:
-   An item with category `'Income'` must have `type: 'income'`. In `DashboardScreen` and `expenseSummary`, income adds to `incomeTotal`, subtracts from `netSpend`, and displays with `+Rp ...`.
+2. **Always respect the Expense / Income / Investment distinction**:
+   An item with category `'Income'` must have `type: 'income'`, and `'Investment'` must have `type: 'investment'` (use `reclassify` / `pairedType`). Income adds to `incomeTotal`, subtracts from `netSpend`, and displays with `+Rp ...`. Investments add only to `investedTotal` and never touch spending or `netSpend`. See [transaction-types.md](transaction-types.md).
 3. **Always document changes in `agents.md`**:
    Under the **Implementation Log / Context History** section, record date, title, and bullet points of everything changed.

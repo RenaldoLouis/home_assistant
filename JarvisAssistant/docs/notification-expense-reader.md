@@ -85,7 +85,10 @@ The parser classifies notifications as either an **expense** or **income**:
   - Rendered with positive prefix `+Rp ...` and emerald styling.
   - Displayed in a summary indicator (`Received: +Rp ...`) and reported in spoken daily voice recaps without inflating spending totals.
 
-The dashboard always includes the default categories `Income` and `Dating`, merges them with categories already seen
+Notifications are never classified as `investment`; the user marks investments in the editor or through Jarvis
+([transaction-types.md](transaction-types.md)).
+
+The dashboard always includes the default categories `Income`, `Investment` and `Dating`, merges them with categories already seen
 in saved transactions, and lets the user update categories at any time. Unknown or blank categories are normalized to `Uncategorized`. Existing documents without a `type` field default to `"expense"`.
 
 ## Date Rule

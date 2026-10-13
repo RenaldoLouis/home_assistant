@@ -8,6 +8,7 @@ import {
   startOfMonth,
 } from './dates';
 import { SavedExpense, normalizeAmount } from './expenseSummary';
+import { transactionTypeOf } from './transactionTypes';
 
 export interface RecapDay {
   date: Date;
@@ -50,6 +51,9 @@ export interface MonthRecap {
   incomeTotal: number;
   netSpend: number;
   expenseCount: number;
+  /** Money moved into investments; never part of spending or net spend. */
+  investedTotal: number;
+  investmentCount: number;
   dailyAverage: number;
   /** Every day of the month; days after today stay at zero. */
   days: RecapDay[];
@@ -62,7 +66,8 @@ export interface MonthRecap {
 
 /**
  * Recaps spending for the calendar month containing `month`, in the phone's
- * timezone. Totals are gross spending; income is reported separately. While
+ * timezone. Totals are gross spending; income and investments are reported
+ * separately and never count as spending. While
  * the month is in progress it is compared with the same days of the previous
  * month so early-month totals are not measured against a full month.
  */
@@ -97,6 +102,8 @@ export function buildMonthRecap(
   let total = 0;
   let incomeTotal = 0;
   let expenseCount = 0;
+  let investedTotal = 0;
+  let investmentCount = 0;
   let previousPeriodTotal = 0;
   let previousMonthTotal = 0;
 
@@ -106,10 +113,13 @@ export function buildMonthRecap(
       normalizeDate(expense.date) ?? normalizeDate(expense.createdAt);
     if (amount <= 0 || !date) continue;
 
-    const isIncome = expense.type === 'income';
+    const type = transactionTypeOf(expense);
     if (date >= monthStart && date < periodEnd) {
-      if (isIncome) {
+      if (type === 'income') {
         incomeTotal += amount;
+      } else if (type === 'investment') {
+        investedTotal += amount;
+        investmentCount += 1;
       } else {
         total += amount;
         expenseCount += 1;
@@ -120,7 +130,11 @@ export function buildMonthRecap(
           (categoryTotals.get(category) ?? 0) + amount,
         );
       }
-    } else if (!isIncome && date >= previousMonthStart && date < monthStart) {
+    } else if (
+      type === 'expense' &&
+      date >= previousMonthStart &&
+      date < monthStart
+    ) {
       previousMonthTotal += amount;
       if (date < previousPeriodEnd) previousPeriodTotal += amount;
     }
@@ -137,6 +151,8 @@ export function buildMonthRecap(
     incomeTotal,
     netSpend: total - incomeTotal,
     expenseCount,
+    investedTotal,
+    investmentCount,
     dailyAverage: daysElapsed > 0 ? Math.round(total / daysElapsed) : 0,
     days,
     weeks,
@@ -185,6 +201,8 @@ export function summarizeMonthRecap(recap: MonthRecap) {
     totalSpent: recap.total,
     incomeReceived: recap.incomeTotal,
     netSpend: recap.netSpend,
+    invested: recap.investedTotal,
+    investmentCount: recap.investmentCount,
     expenseCount: recap.expenseCount,
     dailyAverage: recap.dailyAverage,
     comparison: {
