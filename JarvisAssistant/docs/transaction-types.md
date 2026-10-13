@@ -52,7 +52,11 @@ still dropped entirely by the parser.
 
 ## Firestore rules
 
-`firestore.rules` allows `type in ['expense', 'income', 'investment']`. The repo
-has no `firebase.json`, so publish rule changes manually in the Firebase Console.
-Until the live rules include `investment`, saving an investment fails with
-`permission-denied`.
+`firestore.rules` allows `type in ['expense', 'income', 'investment']`; the live
+rules were published on Oct 13, 2026. The repo has no `firebase.json`, so rule
+changes are published by hand in the Firebase Console.
+
+The app uses the Firebase project **`boba-todo-list`**
+(`android/app/google-services.json`), which can also hold another app's rules.
+Edit only the Jarvis lines in the console; never paste `firestore.rules` over
+the whole editor.

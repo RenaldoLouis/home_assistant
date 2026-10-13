@@ -87,12 +87,12 @@
 ---
 
 ### Feature: Investment Transaction Type
-**Status**: `BUILT` (October 13, 2026, branch `feature/investment-type`) — Firestore rules must be published before investments can be saved on device
+**Status**: `MERGED` to `main` (October 13, 2026) — rules published; not yet built or installed
 - [x] Third type `investment` alongside expense and income; `Investment` default category paired with it, like Income
 - [x] Kept out of spending everywhere: day/week totals, bars, month total, daily average, peaks, categories, month-over-month comparison
 - [x] Own totals: day badge, week breakdown, month card and sheet, Jarvis daily/monthly recaps and context
 - [x] Editor type switcher (Expense / Income / Investment); `update_expense` accepts `type: "investment"`
-- [ ] Publish updated `firestore.rules` in the Firebase Console
+- [x] Publish updated `firestore.rules` in the Firebase Console (project `boba-todo-list`, Oct 13, 2026)
 - [ ] Verify on the S24 FE
 - Details: [transaction-types.md](transaction-types.md)
 
