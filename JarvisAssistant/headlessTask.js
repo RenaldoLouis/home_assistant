@@ -7,7 +7,6 @@ import {
   serverTimestamp,
 } from '@react-native-firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
-import { JARVIS_USER_ID } from './src/expenses/constants';
 import { parseExpenseNotification } from './src/notifications/expenseNotificationParser';
 import { getActiveUserId } from './src/auth/authService';
 
@@ -28,6 +27,10 @@ const headlessTask = async ({ notification }) => {
     const validPostedAt =
       Number.isSafeInteger(postedAt) && postedAt > 0 && postedAt <= capturedAt;
     const activeUid = getActiveUserId();
+    if (!activeUid) {
+      console.log('[Jarvis Headless] Nobody is signed in; expense not saved.');
+      return;
+    }
     const expenseId = uuidv4();
     const savedExpense = {
       id: expenseId,

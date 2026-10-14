@@ -3,15 +3,14 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithCredential,
+  linkWithCredential,
   signInAnonymously as firebaseSignInAnonymously,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   User,
 } from '@react-native-firebase/auth';
 import { UserProfile } from './types';
-import { JARVIS_USER_ID } from '../expenses/constants';
-
-let isGoogleSignInInitialized = false;
+import { Config } from '../config/env';
 
 export function initializeGoogleSignIn(webClientId?: string): void {
   try {
@@ -19,7 +18,6 @@ export function initializeGoogleSignIn(webClientId?: string): void {
       webClientId: webClientId || undefined,
       offlineAccess: false,
     });
-    isGoogleSignInInitialized = true;
   } catch (error) {
     console.warn('[Jarvis Auth] Failed to initialize Google Sign-In:', error);
   }
@@ -40,9 +38,15 @@ export function normalizeFirebaseUser(user: User | null | undefined): UserProfil
 }
 
 export async function signInWithGoogle(): Promise<UserProfile> {
-  if (!isGoogleSignInInitialized) {
-    initializeGoogleSignIn();
+  // Google only returns the ID token Firebase needs when it is asked for one
+  // on behalf of the project's web OAuth client.
+  const webClientId = Config.GOOGLE_WEB_CLIENT_ID;
+  if (!webClientId) {
+    throw new Error(
+      'Google sign-in is not set up: add GOOGLE_WEB_CLIENT_ID to .env and rebuild.',
+    );
   }
+  initializeGoogleSignIn(webClientId);
 
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   const response = await GoogleSignin.signIn();
@@ -59,7 +63,11 @@ export async function signInWithGoogle(): Promise<UserProfile> {
   }
 
   const credential = GoogleAuthProvider.credential(idToken);
-  const userCredential = await signInWithCredential(getAuth(), credential);
+  const auth = getAuth();
+  const guest = auth.currentUser?.isAnonymous ? auth.currentUser : null;
+  const userCredential = guest
+    ? await linkGuestToGoogle(guest, credential)
+    : await signInWithCredential(auth, credential);
 
   const normalized = normalizeFirebaseUser(userCredential.user);
   if (!normalized) {
@@ -67,6 +75,24 @@ export async function signInWithGoogle(): Promise<UserProfile> {
   }
 
   return normalized;
+}
+
+// Linking keeps the guest's UID, so everything saved as a guest stays theirs.
+// Signing in instead would switch to a different UID and strand that data.
+async function linkGuestToGoogle(
+  guest: User,
+  credential: ReturnType<typeof GoogleAuthProvider.credential>,
+) {
+  try {
+    return await linkWithCredential(guest, credential);
+  } catch (error) {
+    if ((error as { code?: string }).code === 'auth/credential-already-in-use') {
+      throw new Error(
+        'This Google account already has its own Jarvis data, so it can’t take over this guest account. You’re still signed in as a guest.',
+      );
+    }
+    throw error;
+  }
 }
 
 export async function signInAnonymously(): Promise<UserProfile> {
@@ -90,11 +116,13 @@ export async function signOut(): Promise<void> {
   await firebaseSignOut(getAuth());
 }
 
-export function getActiveUserId(): string {
+// Null when nobody is signed in: there is no shared fallback folder, because
+// the Firestore rules only accept requests from the folder's own user.
+export function getActiveUserId(): string | null {
   try {
-    return getAuth().currentUser?.uid || JARVIS_USER_ID;
+    return getAuth().currentUser?.uid ?? null;
   } catch {
-    return JARVIS_USER_ID;
+    return null;
   }
 }
 

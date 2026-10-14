@@ -1,4 +1,4 @@
-import { GEMINI_API_KEY, GEMINI_LIVE_MODEL } from '@env';
+import { GEMINI_API_KEY, GEMINI_LIVE_MODEL, GOOGLE_WEB_CLIENT_ID } from '@env';
 
 export const Config = {
   GEMINI_API_KEY: GEMINI_API_KEY || '',
@@ -7,6 +7,8 @@ export const Config = {
   GEMINI_LIVE_MODEL: GEMINI_LIVE_MODEL || 'models/gemini-3.1-flash-live-preview',
   // Voices available: Aoede, Charon, Fenrir, Kore, Puck
   GEMINI_LIVE_VOICE: 'Aoede',
+  // Web OAuth client (type 3 in google-services.json) of the Firebase project.
+  GOOGLE_WEB_CLIENT_ID: GOOGLE_WEB_CLIENT_ID || '',
   getLiveWebSocketUrl(apiKey?: string): string {
     const key = apiKey || Config.GEMINI_API_KEY;
     return `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${key}`;

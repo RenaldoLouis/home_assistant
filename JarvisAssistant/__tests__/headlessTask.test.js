@@ -30,12 +30,57 @@ jest.mock('@react-native-firebase/firestore', () => ({
   serverTimestamp: jest.fn(() => 'SERVER_TIMESTAMP'),
 }));
 
-import { setDoc } from '@react-native-firebase/firestore';
+import { collection, setDoc } from '@react-native-firebase/firestore';
+import { getAuth } from '@react-native-firebase/auth';
 import headlessTask from '../headlessTask';
+
+beforeEach(() => {
+  getAuth().currentUser = { uid: 'signed-in-uid' };
+});
 
 describe('notification expense headless task', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('saves into the signed-in user’s own folder', async () => {
+    await headlessTask({
+      notification: {
+        app: 'id.co.bca.mybca',
+        title: 'Financial Diary',
+        text: 'You spent IDR 12.000 at Food.',
+        time: '1796469600003',
+      },
+    });
+
+    expect(collection).toHaveBeenCalledWith(
+      expect.anything(),
+      'users',
+      'signed-in-uid',
+      'expenses',
+    );
+    expect(setDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        userId: 'signed-in-uid',
+        ledgerId: 'signed-in-uid',
+      }),
+    );
+  });
+
+  it('does not save when nobody is signed in, since the rules would refuse it', async () => {
+    getAuth().currentUser = null;
+
+    await headlessTask({
+      notification: {
+        app: 'id.co.bca.mybca',
+        title: 'Financial Diary',
+        text: 'You spent IDR 12.000 at Food.',
+        time: '1796469600004',
+      },
+    });
+
+    expect(setDoc).not.toHaveBeenCalled();
   });
 
   it('saves a Financial Diary spending notification by parsing the amount locally', async () => {

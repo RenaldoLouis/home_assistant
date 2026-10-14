@@ -5,7 +5,11 @@
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
 import { Linking } from 'react-native';
-import { updateDoc, deleteDoc } from '@react-native-firebase/firestore';
+import {
+  collection,
+  updateDoc,
+  deleteDoc,
+} from '@react-native-firebase/firestore';
 import App from '../App';
 import { ToolExecutionHandlers } from '../src/services/JarvisToolExecutor';
 
@@ -23,14 +27,19 @@ const mockUser = {
   isAnonymous: false,
 };
 
+let mockSignedIn = true;
+const mockSignInAnonymously = jest.fn();
+const mockSignInWithGoogle = jest.fn();
 jest.mock('../src/auth/AuthContext', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
   useAuth: () => ({
-    user: mockUser,
+    user: mockSignedIn ? mockUser : null,
     isLoading: false,
-    signInWithGoogle: jest.fn(),
-    signInGuest: jest.fn(),
+    error: null,
+    signInWithGoogle: mockSignInWithGoogle,
+    signInAnonymously: mockSignInAnonymously,
     signOut: jest.fn(),
+    clearError: jest.fn(),
   }),
 }));
 
@@ -83,6 +92,7 @@ interface DashboardProps {
   ) => Promise<void>;
   onExpenseDelete?: (expenseId: string) => Promise<void>;
   onStartDailyReview?: () => void;
+  onSignInRequest?: () => void;
 }
 
 const mockDashboardScreen = jest.fn((_props: DashboardProps) => null);
@@ -132,6 +142,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockExpenseDocs = [];
   mockUser.uid = 'jarvis_user_id';
+  mockUser.isAnonymous = false;
+  mockSignedIn = true;
 });
 
 test('renders correctly', async () => {
@@ -139,6 +151,44 @@ test('renders correctly', async () => {
     ReactTestRenderer.create(<App />);
     await Promise.resolve();
   });
+});
+
+test('guest mode signs in to Firebase instead of opening a shared unauthenticated folder', async () => {
+  mockSignedIn = false;
+  let renderer: ReactTestRenderer.ReactTestRenderer;
+  await ReactTestRenderer.act(async () => {
+    renderer = ReactTestRenderer.create(<App />);
+    await Promise.resolve();
+  });
+
+  const guestButton = renderer!.root.findByProps({
+    testID: 'guest-signin-button',
+  });
+  await ReactTestRenderer.act(async () => {
+    await guestButton.props.onPress();
+  });
+
+  expect(mockSignInAnonymously).toHaveBeenCalledTimes(1);
+  // Signed out, there is no Firebase user, so the rules would refuse any read.
+  expect(collection).not.toHaveBeenCalled();
+  expect(mockDashboardScreen).not.toHaveBeenCalled();
+});
+
+test('a guest upgrades to Google in place from the dashboard', async () => {
+  mockUser.isAnonymous = true;
+  await ReactTestRenderer.act(async () => {
+    ReactTestRenderer.create(<App />);
+    await Promise.resolve();
+  });
+
+  const latestProps = (
+    mockDashboardScreen.mock.calls[
+      mockDashboardScreen.mock.calls.length - 1
+    ] as [DashboardProps]
+  )[0];
+  latestProps.onSignInRequest?.();
+
+  expect(mockSignInWithGoogle).toHaveBeenCalledTimes(1);
 });
 
 test('saves amount and category corrections to the existing document', async () => {

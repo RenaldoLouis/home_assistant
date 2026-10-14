@@ -501,4 +501,10 @@ export const dashboardStyles = StyleSheet.create({
     color: Colors.textPrimary,
     textAlignVertical: 'top',
   },
+  signInError: {
+    color: Colors.danger,
+    fontSize: 12.5,
+    lineHeight: 18,
+    marginTop: 8,
+  },
 });

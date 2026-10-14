@@ -49,7 +49,7 @@ describe('LoginScreen', () => {
     expect(mockSignInWithGoogle).toHaveBeenCalled();
   });
 
-  it('triggers anonymous sign-in when guest button is pressed without custom callback', async () => {
+  it('triggers anonymous sign-in when guest button is pressed', async () => {
     let renderer: ReactTestRenderer.ReactTestRenderer;
     act(() => {
       renderer = ReactTestRenderer.create(<LoginScreen />);
@@ -62,22 +62,6 @@ describe('LoginScreen', () => {
 
     expect(mockClearError).toHaveBeenCalled();
     expect(mockSignInAnonymously).toHaveBeenCalled();
-  });
-
-  it('triggers onContinueAsGuest prop when provided', async () => {
-    const onGuestMock = jest.fn();
-    let renderer: ReactTestRenderer.ReactTestRenderer;
-    act(() => {
-      renderer = ReactTestRenderer.create(<LoginScreen onContinueAsGuest={onGuestMock} />);
-    });
-
-    const guestBtn = renderer!.root.findByProps({ testID: 'guest-signin-button' });
-    await act(async () => {
-      guestBtn.props.onPress();
-    });
-
-    expect(onGuestMock).toHaveBeenCalled();
-    expect(mockSignInAnonymously).not.toHaveBeenCalled();
   });
 
   it('displays error message when error exists', () => {

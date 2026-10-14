@@ -29,7 +29,6 @@ import {
 } from '@react-native-firebase/firestore';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { OrbState } from './src/components/JarvisOrb';
-import { JARVIS_USER_ID } from './src/expenses/constants';
 import { buildDayReport } from './src/expenses/expenseSummary';
 import {
   normalizeDate,
@@ -51,6 +50,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Colors } from './src/theme/colors';
 import { AuthProvider, useAuth } from './src/auth/AuthContext';
 import { LoginScreen } from './src/auth/LoginScreen';
+import { UserProfile } from './src/auth/types';
 import {
   buildExpenseCategoryOptions,
   normalizeExpenseCategory,
@@ -109,9 +109,58 @@ class ErrorBoundary extends Component<
 }
 
 function JarvisMainContent() {
-  const { user, isLoading: isAuthLoading, signOut } = useAuth();
-  const [isGuestMode, setIsGuestMode] = useState<boolean>(false);
-  const activeUserId = user ? user.uid : JARVIS_USER_ID;
+  const {
+    user,
+    isLoading: isAuthLoading,
+    error: authError,
+    signInWithGoogle,
+    signOut,
+  } = useAuth();
+
+  if (isAuthLoading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: Colors.background,
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <ActivityIndicator size="large" color={Colors.accent} />
+      </View>
+    );
+  }
+
+  // Every Firestore path is scoped to a Firebase user (Google or anonymous
+  // guest); the rules refuse any request made without one.
+  if (!user) {
+    return <LoginScreen />;
+  }
+
+  return (
+    <SignedInContent
+      user={user}
+      signOut={signOut}
+      // A guest upgrades in place: Google is linked to the same account.
+      upgradeGuest={user.isAnonymous ? signInWithGoogle : undefined}
+      upgradeError={authError}
+    />
+  );
+}
+
+function SignedInContent({
+  user,
+  signOut,
+  upgradeGuest,
+  upgradeError,
+}: {
+  user: UserProfile;
+  signOut: () => Promise<void>;
+  upgradeGuest?: () => Promise<void>;
+  upgradeError: string | null;
+}) {
+  const activeUserId = user.uid;
 
   const [isRecordingCommand, setIsRecordingCommand] = useState(false);
   const [commandText, setCommandText] = useState('');
@@ -629,25 +678,6 @@ function JarvisMainContent() {
     [activeUserId],
   );
 
-  if (isAuthLoading) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: Colors.background,
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        <ActivityIndicator size="large" color={Colors.accent} />
-      </View>
-    );
-  }
-
-  if (!user && !isGuestMode) {
-    return <LoginScreen onContinueAsGuest={() => setIsGuestMode(true)} />;
-  }
-
   return (
     <DashboardScreen
       isRecordingCommand={isRecordingCommand}
@@ -678,7 +708,8 @@ function JarvisMainContent() {
       onDismissSaveError={() => setFailedSave(null)}
       user={user}
       onSignOut={signOut}
-      onSignInRequest={() => setIsGuestMode(false)}
+      onSignInRequest={upgradeGuest}
+      signInError={upgradeError}
     />
   );
 }

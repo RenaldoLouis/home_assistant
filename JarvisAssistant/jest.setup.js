@@ -30,6 +30,7 @@ jest.mock('@react-native-firebase/auth', () => {
       credential,
     },
     signInWithCredential: jest.fn(),
+    linkWithCredential: jest.fn(),
     signInAnonymously: jest.fn(),
     signOut: jest.fn(),
     onAuthStateChanged: jest.fn((auth, cb) => (cb ? cb(authInstance.currentUser) : jest.fn())),

@@ -41,7 +41,7 @@ flowchart TD
     end
 
     subgraph Storage["Cloud Firestore"]
-        FirestoreDB[("users/jarvis_user_id/expenses")]
+        FirestoreDB[("users/{uid}/expenses")]
     end
 
     subgraph ForegroundApp["React Native Foreground App (App.tsx)"]
@@ -94,7 +94,7 @@ flowchart TD
   - Extracts merchant/recipient, amount, bank, and transaction type (`expense` vs `income`).
   - Sets `dateSource`: prioritizes `notificationTime` (epoch milliseconds from `StatusBarNotification.getPostTime()`) over capture time.
   - Automatically polyfills `react-native-get-random-values` before calling `uuidv4()`.
-  - Writes directly to Firestore `users/{JARVIS_USER_ID}/expenses/{expenseId}`.
+  - Writes directly to Firestore `users/{uid}/expenses/{expenseId}` for the signed-in Firebase user (Google or guest). Skips saving when nobody is signed in; see [auth-and-guest-mode.md](auth-and-guest-mode.md).
 
 ### Subsystem B: Real-Time Financial Diary & Domain Logic
 Located in `src/expenses/`:
@@ -208,7 +208,6 @@ JarvisAssistant/
 │   │   └── config.ts                 # Environment bindings (Gemini API keys, Live WebSocket URL builder)
 │   ├── expenses/                     # Pure domain logic & math
 │   │   ├── categories.ts             # Default & dynamic category normalization
-│   │   ├── constants.ts              # JARVIS_USER_ID and shared constants
 │   │   ├── dates.ts                  # Timezone-aware date parsing & formatting
 │   │   ├── expenseEditing.ts         # Validation & Income/Expense auto-sync logic
 │   │   ├── expenseSummary.ts         # buildDayReport and buildExpenseSummary math engines

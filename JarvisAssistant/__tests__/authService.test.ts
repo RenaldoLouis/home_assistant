@@ -3,6 +3,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithCredential,
+  linkWithCredential,
   signInAnonymously as firebaseSignInAnonymously,
   signOut as firebaseSignOut,
   User,
@@ -15,11 +16,18 @@ import {
   normalizeFirebaseUser,
   getActiveUserId,
 } from '../src/auth/authService';
-import { JARVIS_USER_ID } from '../src/expenses/constants';
+
+const mockConfig = { GOOGLE_WEB_CLIENT_ID: '' };
+jest.mock('../src/config/env', () => ({
+  get Config() {
+    return mockConfig;
+  },
+}));
 
 describe('authService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockConfig.GOOGLE_WEB_CLIENT_ID = 'web-client.apps.googleusercontent.com';
     const authInstance = getAuth();
     (authInstance as any).currentUser = null;
   });
@@ -85,6 +93,74 @@ describe('authService', () => {
       await expect(signInWithGoogle()).rejects.toThrow(
         /No ID token returned from Google Sign-In/,
       );
+    });
+
+    it('asks Google for an ID token using the configured web client ID', async () => {
+      (GoogleSignin.hasPlayServices as jest.Mock).mockResolvedValue(true);
+      (GoogleSignin.signIn as jest.Mock).mockResolvedValue({
+        data: { idToken: 'mock-google-id-token' },
+      });
+      (signInWithCredential as jest.Mock).mockResolvedValue({
+        user: { uid: 'user-google-123', isAnonymous: false },
+      });
+
+      await signInWithGoogle();
+
+      expect(GoogleSignin.configure).toHaveBeenCalledWith(
+        expect.objectContaining({ webClientId: mockConfig.GOOGLE_WEB_CLIENT_ID }),
+      );
+    });
+
+    it('upgrades a guest in place by linking Google to the same account', async () => {
+      const guest = { uid: 'anon-1', isAnonymous: true };
+      (getAuth() as any).currentUser = guest;
+      (GoogleSignin.hasPlayServices as jest.Mock).mockResolvedValue(true);
+      (GoogleSignin.signIn as jest.Mock).mockResolvedValue({
+        data: { idToken: 'mock-google-id-token' },
+      });
+      (linkWithCredential as jest.Mock).mockResolvedValue({
+        user: {
+          uid: 'anon-1',
+          email: 'me@example.com',
+          displayName: 'Me',
+          photoURL: null,
+          isAnonymous: false,
+        },
+      });
+
+      const user = await signInWithGoogle();
+
+      expect(linkWithCredential).toHaveBeenCalledWith(
+        guest,
+        expect.objectContaining({ token: 'mock-google-id-token' }),
+      );
+      expect(signInWithCredential).not.toHaveBeenCalled();
+      expect(user).toMatchObject({ uid: 'anon-1', isAnonymous: false });
+    });
+
+    it('keeps the guest signed in when that Google account already has its own Jarvis data', async () => {
+      (getAuth() as any).currentUser = { uid: 'anon-1', isAnonymous: true };
+      (GoogleSignin.hasPlayServices as jest.Mock).mockResolvedValue(true);
+      (GoogleSignin.signIn as jest.Mock).mockResolvedValue({
+        data: { idToken: 'mock-google-id-token' },
+      });
+      (linkWithCredential as jest.Mock).mockRejectedValue(
+        Object.assign(new Error('[auth/credential-already-in-use]'), {
+          code: 'auth/credential-already-in-use',
+        }),
+      );
+
+      await expect(signInWithGoogle()).rejects.toThrow(
+        /already has its own Jarvis data/,
+      );
+      expect(signInWithCredential).not.toHaveBeenCalled();
+    });
+
+    it('explains the missing setup instead of opening Google when no web client ID is set', async () => {
+      mockConfig.GOOGLE_WEB_CLIENT_ID = '';
+
+      await expect(signInWithGoogle()).rejects.toThrow(/GOOGLE_WEB_CLIENT_ID/);
+      expect(GoogleSignin.signIn).not.toHaveBeenCalled();
     });
   });
 
@@ -167,10 +243,10 @@ describe('authService', () => {
       expect(getActiveUserId()).toBe('logged-in-uid');
     });
 
-    it('falls back to JARVIS_USER_ID when currentUser is null', () => {
+    it('returns null when nobody is signed in', () => {
       const authInstance = getAuth();
       (authInstance as any).currentUser = null;
-      expect(getActiveUserId()).toBe(JARVIS_USER_ID);
+      expect(getActiveUserId()).toBeNull();
     });
   });
 });

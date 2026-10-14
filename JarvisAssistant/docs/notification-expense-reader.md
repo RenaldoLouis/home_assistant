@@ -19,8 +19,9 @@ References:
 3. The listener serializes public notification fields such as `app`, `title`, `text`, `bigText`,
    `subText`, `summaryText`, `extraInfoText`, `groupedMessages`, and `time`.
 4. `headlessTask.js` parses only Financial Diary/myBCA spending notifications locally.
-5. Parsed expenses are saved under `users/jarvis_user_id/expenses` with a locally generated
-   document ID.
+5. Parsed expenses are saved under `users/{uid}/expenses` for the signed-in Firebase user
+   (Google or guest), with a locally generated document ID. Nothing is saved while nobody is
+   signed in, because the Firestore rules would refuse it.
 6. `App.tsx` subscribes to the same collection, calculates dashboard totals, and exposes category
    edits for each saved expense.
 

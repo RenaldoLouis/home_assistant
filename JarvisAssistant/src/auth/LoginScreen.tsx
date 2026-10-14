@@ -11,11 +11,7 @@ import { useAuth } from './AuthContext';
 import { Colors } from '../theme/colors';
 import { Icon } from '../components/Icon';
 
-export interface LoginScreenProps {
-  onContinueAsGuest?: () => void;
-}
-
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onContinueAsGuest }) => {
+export const LoginScreen: React.FC = () => {
   const { signInWithGoogle, signInAnonymously, isLoading, error, clearError } =
     useAuth();
   const [isPressingGoogle, setIsPressingGoogle] = useState(false);
@@ -28,10 +24,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onContinueAsGuest }) =
 
   const handleGuestPress = async () => {
     clearError();
-    if (onContinueAsGuest) {
-      onContinueAsGuest();
-      return;
-    }
     await signInAnonymously();
   };
 
@@ -135,7 +127,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onContinueAsGuest }) =
               isPressingGuest && styles.buttonPressed,
             ]}
           >
-            <Text style={styles.guestButtonText}>Continue in Guest Mode (Offline)</Text>
+            <Text style={styles.guestButtonText}>Continue as Guest</Text>
           </Pressable>
         </View>
 

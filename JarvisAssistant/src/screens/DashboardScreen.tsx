@@ -60,6 +60,7 @@ export interface DashboardScreenProps {
   user?: UserProfile | null;
   onSignOut?: () => void;
   onSignInRequest?: () => void;
+  signInError?: string | null;
 }
 export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
   const [tab, setTab] = useState<'today' | 'home'>('today');
@@ -797,7 +798,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
       {panel === 'settings' && (
         <Sheet title="Your Jarvis" onClose={() => setPanel(null)}>
           <Text style={s.smallHeading}>Account & Security</Text>
-          {props.user ? (
+          {props.user && !props.user.isAnonymous ? (
             <View
               style={{
                 backgroundColor: '#F0F4EC',
@@ -928,18 +929,20 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = props => {
                   fontSize: 14,
                 }}
               >
-                Guest Mode (Local Device)
+                Guest account
               </Text>
               <Text style={{ color: Colors.textSecondary, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}>
-                Sign in with Google to sync and secure your spending in your private cloud space.
+                Sign in with Google to keep your spending if you change phones. Everything you’ve saved as a guest comes with you.
               </Text>
+              {props.signInError ? (
+                <Text style={s.signInError}>
+                  {props.signInError}
+                </Text>
+              ) : null}
               {props.onSignInRequest && (
                 <AnimatedPressable
                   testID="settings-signin-button"
-                  onPress={() => {
-                    setPanel(null);
-                    props.onSignInRequest?.();
-                  }}
+                  onPress={() => props.onSignInRequest?.()}
                   style={{
                     backgroundColor: Colors.accent,
                     paddingVertical: 10,

@@ -510,3 +510,36 @@ test('an expense editor saves the Investment category with type: investment', as
       .props.accessibilityState,
   ).toMatchObject({ selected: true });
 });
+
+const guestUser = {
+  uid: 'anon-1',
+  email: null,
+  displayName: 'Guest User',
+  photoURL: null,
+  isAnonymous: true,
+};
+
+test('a guest can upgrade to Google from settings and has no sign-out that would strand their data', async () => {
+  const upgrade = jest.fn();
+  await act(async () => {
+    screen.update(
+      <DashboardScreen
+        {...props}
+        user={guestUser}
+        onSignOut={jest.fn()}
+        onSignInRequest={upgrade}
+        signInError="This Google account already has its own Jarvis data."
+      />,
+    );
+  });
+  await press('Open settings');
+
+  expect(byTestId('signout-button')).toBeUndefined();
+  expect(visibleText()).toContain(
+    'This Google account already has its own Jarvis data.',
+  );
+  await act(async () => {
+    byTestId('settings-signin-button').props.onPress();
+  });
+  expect(upgrade).toHaveBeenCalledTimes(1);
+});

@@ -439,6 +439,18 @@ Stats: 23 obs (6,319t read) | 364,986t work | 98% savings
   - `firestore.rules`: `type in ['expense', 'income', 'investment']`. Published by the user in the Firebase Console on Oct 13 (project `boba-todo-list`, shared with another app, so only the `isValidExpense` type line was edited; never paste the whole file). Merged and pushed to `main` (`5f85f7d`); not built or installed yet, by user choice
   - Tests: new `transactionTypes.test.ts` + summary/recap/editing/category/dashboard/App cases (17 suites, 139 tests). Mutation-checked that the previous-month comparison test fails if investments leak in. tsc clean, no new lint warnings. Docs: `JarvisAssistant/docs/transaction-types.md`; architecture, monthly-recap, notification-reader and progress docs updated
 
+### Oct 14, 2026
+🔴 Guest mode showed "Couldn't load expenses"; Google sign-in never worked (branch `fix/guest-anonymous-auth`)
+  - Root cause: "Continue in Guest Mode" skipped Firebase sign-in and used a fixed `users/jarvis_user_id` folder, so requests had no `request.auth` and the ownership rule refused them. Reproduced with an API-key-only Firestore REST read → `403 PERMISSION_DENIED`. The live rules (pasted by the user on Oct 14) match `firestore.rules` exactly, with no open or time-limited rule, so an older open rule was replaced or expired (most likely the Oct 13 publish). They contain nothing for the todo app. The 159 expenses were still in the folder
+  - User decisions: their own data goes to their Google account; guest mode becomes a real anonymous account; a guest upgrades to Google in place
+  - Fix: `LoginScreen` guest button always calls `signInAnonymously`; `App.tsx` splits into a sign-in gate (`JarvisMainContent`) and `SignedInContent`, so nothing reads Firestore before sign-in; `JARVIS_USER_ID` / `src/expenses/constants.ts` deleted; `getActiveUserId()` returns null when signed out and `headlessTask.js` skips saving then
+  - Upgrade in place: `signInWithGoogle` links Google to a current anonymous user (`linkWithCredential`, same UID); `auth/credential-already-in-use` keeps the guest signed in with a message. The dashboard guest card shows "Sign in with Google" + the error and has no Sign Out
+  - Google sign-in: the Jarvis Android app was never registered (the old `google-services.json` borrowed the todo app's registration). The user registered `com.jarvisassistant` with both SHA-1s; the new config is installed. `signInWithGoogle` now passes `GOOGLE_WEB_CLIENT_ID` (`.env`) and fails early with a clear message if it is missing
+  - Auto mode blocked admin (gcloud ADC) calls to the shared Firebase project, including listing Auth users (the todo app's users are in the same project). The data copy is a scratchpad script the user runs with `!`; it copies only, never overwrites or deletes
+  - Tests: App, LoginScreen, authService, headlessTask, DashboardScreen cases (17 suites, 147 tests); tsc clean, no new lint warnings. Docs: `JarvisAssistant/docs/auth-and-guest-mode.md`; progress, architecture and notification-reader docs updated
+  - Installed on the S24 FE (arm64 release, wireless ADB after re-pairing; the connect port comes from `adb mdns services`). Sign-in worked with no errors. The user ran the copy: 159 copied, 0 failed, 0 missing
+  - Open: user confirms the dashboard history; decide whether to delete the old `users/jarvis_user_id` folder; commit/merge `fix/guest-anonymous-auth`
+
 
 Access 365k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

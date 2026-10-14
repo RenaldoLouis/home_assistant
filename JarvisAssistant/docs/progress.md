@@ -42,13 +42,13 @@
 - [x] **Multi-Tenant Scoped Firestore**:
   - Migrated collection path from root `/expenses` to `/users/{userId}/expenses`.
   - Injected `userId` and `ledgerId` into both foreground sync (`App.tsx`) and background headless listener (`headlessTask.js`).
-  - Implemented offline-first persistence fallback for unauthenticated/guest sessions.
+  - ~~Offline fallback for guest sessions~~: guest mode skipped Firebase sign-in and wrote to a shared `users/jarvis_user_id` folder. Replaced on October 14, 2026 by real anonymous sign-in (see Fix: Guest Mode & Google Sign-In).
 - [x] **Firestore Security Rules**: Authored [`firestore.rules`](../../firestore.rules) enforcing `isOwner(userId)` (`request.auth.uid == userId`) and prepared structure for `/households/{householdId}`.
 - [x] **Warm Linen & Botanical Editorial Design Compliance**:
   - Completely restyled [`LoginScreen.tsx`](../src/auth/LoginScreen.tsx) with warm linen background (`#F5F4F0`), serif typography, white card (`#FFFFFF`), sage mint badges (`#E4EFE8`), and accessible 48dp buttons.
   - Aligned Dashboard Profile Chip and Account & Security Settings Card to soft sage palette.
   - Added bottom navigation safe clearance (44dp padding).
-- [x] **SHA-1 Fingerprints Registered**:
+- [x] **SHA-1 Fingerprints** (registered in Firebase only on October 14, 2026, together with the `com.jarvisassistant` Android app):
   - Release SHA-1 (`jarvis.keystore`): `10:F3:66:FB:66:58:BC:2D:DE:39:82:34:94:D6:E5:94:51:A9:3B:D6`
   - Debug SHA-1: `5E:8F:16:06:2E:A3:CD:2C:4A:0D:54:78:76:BA:A6:F3:8C:AB:F6:25`
 - [x] **Automated Tests**: 14 test suites, 87 unit tests passing with zero TypeScript errors (`npx tsc --noEmit`).
@@ -95,6 +95,20 @@
 - [x] Publish updated `firestore.rules` in the Firebase Console (project `boba-todo-list`, Oct 13, 2026)
 - [ ] Verify on the S24 FE
 - Details: [transaction-types.md](transaction-types.md)
+
+---
+
+### Fix: Guest Mode & Google Sign-In
+**Status**: `IN PROGRESS` (branch `fix/guest-anonymous-auth`, October 14, 2026)
+- [x] Root cause of "Couldn't load expenses": guest mode never signed in to Firebase, so its reads of the shared `users/jarvis_user_id` folder had no `request.auth` and the rules refused them (`403 PERMISSION_DENIED`).
+- [x] Guest mode is a real Firebase anonymous account; the shared folder and `JARVIS_USER_ID` are gone. The background notification reader skips saving when nobody is signed in.
+- [x] A guest upgrades to Google in place (`linkWithCredential`, same UID, data kept). A Google account that already has its own data is refused with a message; the guest stays signed in. Guests get no Sign Out (it would strand their data).
+- [x] Google sign-in: registered the `com.jarvisassistant` Android app with both SHA-1s in Firebase, installed its `google-services.json`, and passed the web client ID (`GOOGLE_WEB_CLIENT_ID` in `.env`).
+- [x] Installed on the S24 FE (arm64 release, wireless ADB) and signed in without errors.
+- [x] Copied the 159 old guest expenses into the user's account (0 failed, 0 missing). The old folder is kept as a backup for now.
+- [ ] User confirms the history shows on the dashboard; decide whether to delete `users/jarvis_user_id`.
+
+Details: [auth-and-guest-mode.md](auth-and-guest-mode.md).
 
 ---
 
