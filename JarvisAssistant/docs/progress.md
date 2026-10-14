@@ -99,14 +99,14 @@
 ---
 
 ### Fix: Guest Mode & Google Sign-In
-**Status**: `IN PROGRESS` (branch `fix/guest-anonymous-auth`, October 14, 2026)
+**Status**: `MERGED` ✅ (branch `fix/guest-anonymous-auth` → `main`, October 14, 2026)
 - [x] Root cause of "Couldn't load expenses": guest mode never signed in to Firebase, so its reads of the shared `users/jarvis_user_id` folder had no `request.auth` and the rules refused them (`403 PERMISSION_DENIED`).
 - [x] Guest mode is a real Firebase anonymous account; the shared folder and `JARVIS_USER_ID` are gone. The background notification reader skips saving when nobody is signed in.
 - [x] A guest upgrades to Google in place (`linkWithCredential`, same UID, data kept). A Google account that already has its own data is refused with a message; the guest stays signed in. Guests get no Sign Out (it would strand their data).
 - [x] Google sign-in: registered the `com.jarvisassistant` Android app with both SHA-1s in Firebase, installed its `google-services.json`, and passed the web client ID (`GOOGLE_WEB_CLIENT_ID` in `.env`).
 - [x] Installed on the S24 FE (arm64 release, wireless ADB) and signed in without errors.
-- [x] Copied the 159 old guest expenses into the user's account (0 failed, 0 missing). The old folder is kept as a backup for now.
-- [ ] User confirms the history shows on the dashboard; decide whether to delete `users/jarvis_user_id`.
+- [x] Copied the 159 old guest expenses into the user's Google account (0 failed, 0 missing), then deleted the old `users/jarvis_user_id` folder after checking the copy.
+- [ ] Confirm the next real BCA "Financial Diary" notification saves to the dashboard. The listener and reader were checked on the phone; a real bank notification can't be faked.
 
 Details: [auth-and-guest-mode.md](auth-and-guest-mode.md).
 

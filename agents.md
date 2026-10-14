@@ -449,7 +449,9 @@ Stats: 23 obs (6,319t read) | 364,986t work | 98% savings
   - Auto mode blocked admin (gcloud ADC) calls to the shared Firebase project, including listing Auth users (the todo app's users are in the same project). The data copy is a scratchpad script the user runs with `!`; it copies only, never overwrites or deletes
   - Tests: App, LoginScreen, authService, headlessTask, DashboardScreen cases (17 suites, 147 tests); tsc clean, no new lint warnings. Docs: `JarvisAssistant/docs/auth-and-guest-mode.md`; progress, architecture and notification-reader docs updated
   - Installed on the S24 FE (arm64 release, wireless ADB after re-pairing; the connect port comes from `adb mdns services`). Sign-in worked with no errors. The user ran the copy: 159 copied, 0 failed, 0 missing
-  - Open: user confirms the dashboard history; decide whether to delete the old `users/jarvis_user_id` folder; commit/merge `fix/guest-anonymous-auth`
+  - On the phone: notification access confirmed, and real non-bank notifications reach the reader and are ignored. Firebase auth restores the signed-in user when the reader starts (`APP_USER` constant). Merged and pushed to `main` (`01e1252`)
+  - Old folder deleted by a second user-run script after it confirmed a Google account and that every old expense was present (3 absent ones the user had deleted in the app on purpose; `--allow-missing`): 159 deleted, 0 left
+  - Open: confirm the next real BCA Financial Diary notification saves
 
 
 Access 365k tokens of past work via get_observations([IDs]) or mem-search skill.
