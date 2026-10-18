@@ -1,14 +1,8 @@
 import 'react-native-get-random-values';
-import {
-  getFirestore,
-  collection,
-  doc,
-  setDoc,
-  serverTimestamp,
-} from '@react-native-firebase/firestore';
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, v5 as uuidv5 } from 'uuid';
 import { parseExpenseNotification } from './src/notifications/expenseNotificationParser';
 import { getActiveUserId } from './src/auth/authService';
+import { saveNotificationExpense } from './src/notifications/notificationExpenseStore';
 
 const headlessTask = async ({ notification }) => {
   try {
@@ -24,14 +18,26 @@ const headlessTask = async ({ notification }) => {
     // Android's listener exposes StatusBarNotification.getPostTime() as epoch milliseconds.
     const postedAt = Number(expenseData.notificationTime);
     const capturedAt = Date.now();
-    const validPostedAt =
-      Number.isSafeInteger(postedAt) && postedAt > 0 && postedAt <= capturedAt;
+    const hasPostedAt = Number.isSafeInteger(postedAt) && postedAt > 0;
+    const validPostedAt = hasPostedAt && postedAt <= capturedAt;
     const activeUid = getActiveUserId();
     if (!activeUid) {
       console.log('[Jarvis Headless] Nobody is signed in; expense not saved.');
       return;
     }
-    const expenseId = uuidv4();
+    // Use only scrubbed transaction fields. Re-delivery must target the same document.
+    const expenseId = hasPostedAt
+      ? uuidv5(
+          JSON.stringify([
+            expenseData.sourceApp,
+            postedAt,
+            expenseData.amount,
+            expenseData.merchant,
+            expenseData.type,
+          ]),
+          uuidv5.URL,
+        )
+      : uuidv4();
     const savedExpense = {
       id: expenseId,
       userId: activeUid,
@@ -45,22 +51,13 @@ const headlessTask = async ({ notification }) => {
       dateSource: validPostedAt ? 'notification' : 'capture',
       sourceApp: expenseData.sourceApp,
       sourceTitle: expenseData.sourceTitle,
-      createdAt: serverTimestamp(),
     };
 
     if (expenseData.notificationTime) {
       savedExpense.notificationTime = expenseData.notificationTime;
     }
 
-    const db = getFirestore();
-    const expenseRef = doc(
-      collection(db, 'users', activeUid, 'expenses'),
-      expenseId,
-    );
-
-    await setDoc(expenseRef, savedExpense);
-
-    console.log('[Jarvis Headless] Saved expense.');
+    await saveNotificationExpense(savedExpense);
   } catch (error) {
     console.error(
       '[Jarvis Headless] Error in notification listener headless task:',

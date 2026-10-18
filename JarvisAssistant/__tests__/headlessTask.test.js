@@ -1,4 +1,26 @@
 const mockGenerateContent = jest.fn();
+let mockNextId = 0;
+const mockSavedExpenses = new Map();
+const mockPendingExpenses = new Map();
+
+jest.mock('react-native', () => {
+  const actual = jest.requireActual('react-native');
+  actual.NativeModules.NotificationManagerModule = {
+    enqueueNotificationExpense: jest.fn(async (uid, id, payload) => {
+      const key = `${uid}/${id}`;
+      if (!mockPendingExpenses.has(key)) mockPendingExpenses.set(key, payload);
+    }),
+    getPendingNotificationExpenses: jest.fn(async uid =>
+      [...mockPendingExpenses.values()].filter(
+        payload => JSON.parse(payload).userId === uid,
+      ),
+    ),
+    removePendingNotificationExpense: jest.fn(async (uid, id) => {
+      mockPendingExpenses.delete(`${uid}/${id}`);
+    }),
+  };
+  return actual;
+});
 
 jest.mock('@google/generative-ai', () => ({
   GoogleGenerativeAI: jest.fn(() => ({
@@ -12,27 +34,50 @@ jest.mock('react-native-get-random-values', () => {
   global.__jarvisRandomValuesPolyfilled = true;
 });
 
-jest.mock('uuid', () => ({
-  v4: jest.fn(() => {
-    if (!global.__jarvisRandomValuesPolyfilled) {
-      throw new Error('crypto.getRandomValues() not supported');
-    }
+jest.mock('uuid', () => {
+  const v5 = jest.fn(value =>
+    require('crypto').createHash('sha256').update(value).digest('hex'),
+  );
+  v5.URL = 'test-namespace';
+  return {
+    v5,
+    v4: jest.fn(() => {
+      if (!global.__jarvisRandomValuesPolyfilled) {
+        throw new Error('crypto.getRandomValues() not supported');
+      }
 
-    return 'expense-id-1';
-  }),
-}));
+      return `expense-id-${++mockNextId}`;
+    }),
+  };
+});
 
 jest.mock('@react-native-firebase/firestore', () => ({
   getFirestore: jest.fn(() => ({ name: 'firestore' })),
   collection: jest.fn((...args) => ({ type: 'collection', args })),
   doc: jest.fn((...args) => ({ type: 'doc', args })),
-  setDoc: jest.fn(() => Promise.resolve()),
+  getDoc: jest.fn(async ref => ({
+    exists: () => mockSavedExpenses.has(JSON.stringify(ref)),
+  })),
+  setDoc: jest.fn(async (ref, expense) => {
+    mockSavedExpenses.set(JSON.stringify(ref), expense);
+  }),
+  runTransaction: jest.fn(async (_db, update) => {
+    const sdk = require('@react-native-firebase/firestore');
+    const writes = [];
+    await update({
+      get: sdk.getDoc,
+      set: (ref, expense) => writes.push([ref, expense]),
+    });
+    for (const [ref, expense] of writes) await sdk.setDoc(ref, expense);
+  }),
   serverTimestamp: jest.fn(() => 'SERVER_TIMESTAMP'),
 }));
 
-import { collection, setDoc } from '@react-native-firebase/firestore';
+import { collection, getDoc, setDoc } from '@react-native-firebase/firestore';
 import { getAuth } from '@react-native-firebase/auth';
 import headlessTask from '../headlessTask';
+import { NativeModules } from 'react-native';
+import { flushPendingNotificationExpenses } from '../src/notifications/notificationExpenseStore';
 
 beforeEach(() => {
   getAuth().currentUser = { uid: 'signed-in-uid' };
@@ -41,7 +86,255 @@ beforeEach(() => {
 describe('notification expense headless task', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSavedExpenses.clear();
+    mockPendingExpenses.clear();
   });
+
+  it('saves only one expense when the same notification arrives concurrently', async () => {
+    const notification = {
+      app: 'id.co.bca.mybca',
+      title: 'Financial Diary',
+      text: 'You spent IDR 25.000 at Food.',
+      time: '1796469600100',
+    };
+
+    await Promise.all([
+      headlessTask({ notification }),
+      headlessTask({ notification: JSON.stringify(notification) }),
+    ]);
+
+    expect(setDoc).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not overwrite an expense when its notification is delivered again later', async () => {
+    const notification = {
+      app: 'id.co.bca.mybca',
+      title: 'Financial Diary',
+      text: 'You spent IDR 25.000 at Food.',
+      time: '1796469600101',
+    };
+
+    await headlessTask({ notification });
+    await headlessTask({ notification });
+
+    expect(setDoc).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps separate purchases with identical values at different posting times', async () => {
+    const notification = {
+      app: 'id.co.bca.mybca',
+      title: 'Financial Diary',
+      text: 'You spent IDR 25.000 at Food.',
+      time: '1796469600200',
+    };
+
+    await headlessTask({ notification });
+    await headlessTask({
+      notification: { ...notification, time: '1796469600201' },
+    });
+
+    expect(mockSavedExpenses.size).toBe(2);
+  });
+
+  it('drains a new capture that arrives while an empty drain is finishing', async () => {
+    const queue = NativeModules.NotificationManagerModule;
+    let releaseEmptyList;
+    queue.getPendingNotificationExpenses.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          releaseEmptyList = resolve;
+        }),
+    );
+    const first = flushPendingNotificationExpenses('signed-in-uid');
+    releaseEmptyList([]);
+    await Promise.resolve();
+    const enqueue = queue.enqueueNotificationExpense(
+      'signed-in-uid',
+      'late-capture',
+      JSON.stringify({
+        id: 'late-capture',
+        userId: 'signed-in-uid',
+        ledgerId: 'signed-in-uid',
+        amount: 25000,
+        merchant: 'Food',
+        category: 'Food',
+        bank: 'BCA',
+        type: 'expense',
+        date: '2026-10-18T00:00:00.000Z',
+        dateSource: 'notification',
+        sourceApp: 'id.co.bca.mybca',
+        sourceTitle: 'Financial Diary',
+      }),
+    );
+    const second = flushPendingNotificationExpenses('signed-in-uid');
+    await Promise.all([first, enqueue, second]);
+
+    expect(mockSavedExpenses.size).toBe(1);
+    expect(mockPendingExpenses.size).toBe(0);
+  });
+
+  it('preserves saved corrections when a notification replays after a JS restart', async () => {
+    const notification = {
+      app: 'id.co.bca.mybca',
+      title: 'Financial Diary',
+      text: 'You spent IDR 25.000 at Food.',
+      time: '1796469600300',
+    };
+    await headlessTask({ notification });
+    const [key, saved] = [...mockSavedExpenses.entries()][0];
+    mockSavedExpenses.set(key, { ...saved, category: 'Dating', amount: 20000 });
+
+    let restartedTask;
+    jest.isolateModules(() => {
+      require('@react-native-firebase/auth').getAuth().currentUser = {
+        uid: 'signed-in-uid',
+      };
+      restartedTask = require('../headlessTask').default;
+    });
+    await restartedTask({ notification });
+
+    expect([...mockSavedExpenses.values()]).toEqual([
+      expect.objectContaining({ category: 'Dating', amount: 20000 }),
+    ]);
+  });
+
+  it('does not share duplicate tracking between accounts', async () => {
+    const notification = {
+      app: 'id.co.bca.mybca',
+      title: 'Financial Diary',
+      text: 'You spent IDR 25.000 at Food.',
+      time: '1796469600400',
+    };
+    await headlessTask({ notification });
+    getAuth().currentUser = { uid: 'another-uid' };
+    await headlessTask({ notification });
+
+    expect(
+      [...mockSavedExpenses.values()].map(expense => expense.userId),
+    ).toEqual(['signed-in-uid', 'another-uid']);
+  });
+
+  it('allows a retry after the database write fails', async () => {
+    const notification = {
+      app: 'id.co.bca.mybca',
+      title: 'Financial Diary',
+      text: 'You spent IDR 25.000 at Food.',
+      time: '1796469600500',
+    };
+    setDoc.mockRejectedValueOnce(new Error('save failed'));
+    const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await headlessTask({ notification });
+      await headlessTask({ notification });
+      expect(mockSavedExpenses.size).toBe(1);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it('retains an offline first capture locally until it can safely create the expense', async () => {
+    getDoc.mockRejectedValueOnce({ code: 'firestore/unavailable' });
+    await headlessTask({
+      notification: {
+        app: 'id.co.bca.mybca',
+        title: 'Financial Diary',
+        text: 'You spent IDR 25.000 at Food.',
+        time: '1796469600600',
+      },
+    });
+
+    expect(mockSavedExpenses.size).toBe(0);
+    expect(mockPendingExpenses.size).toBe(1);
+    await flushPendingNotificationExpenses('signed-in-uid');
+    expect(mockSavedExpenses.size).toBe(1);
+    expect(mockPendingExpenses.size).toBe(0);
+  });
+
+  it('does not replace a corrected remote expense after an offline cache miss', async () => {
+    const notification = {
+      app: 'id.co.bca.mybca',
+      title: 'Financial Diary',
+      text: 'You spent IDR 25.000 at Food.',
+      time: '1796469600700',
+    };
+    await headlessTask({ notification });
+    const [key, saved] = [...mockSavedExpenses.entries()][0];
+    mockSavedExpenses.set(key, { ...saved, category: 'Dating', amount: 20000 });
+    getDoc.mockRejectedValueOnce({ code: 'firestore/unavailable' });
+    await headlessTask({ notification });
+
+    expect([...mockSavedExpenses.values()]).toEqual([
+      expect.objectContaining({ category: 'Dating', amount: 20000 }),
+    ]);
+    await flushPendingNotificationExpenses('signed-in-uid');
+    expect(mockPendingExpenses.size).toBe(0);
+    expect([...mockSavedExpenses.values()]).toEqual([
+      expect.objectContaining({ category: 'Dating', amount: 20000 }),
+    ]);
+  });
+
+  it('recovers an offline capture after a JS restart without another notification', async () => {
+    getDoc.mockRejectedValueOnce({ code: 'firestore/unavailable' });
+    await headlessTask({
+      notification: {
+        app: 'id.co.bca.mybca',
+        title: 'Financial Diary',
+        text: 'You spent IDR 25.000 at Food.',
+        time: '1796469600800',
+      },
+    });
+    expect(mockSavedExpenses.size).toBe(0);
+    let flushAfterRestart;
+    jest.isolateModules(() => {
+      require('@react-native-firebase/auth').getAuth().currentUser = {
+        uid: 'signed-in-uid',
+      };
+      flushAfterRestart =
+        require('../src/notifications/notificationExpenseStore').flushPendingNotificationExpenses;
+    });
+    await flushAfterRestart('signed-in-uid');
+    expect(mockSavedExpenses.size).toBe(1);
+    expect(mockPendingExpenses.size).toBe(0);
+  });
+
+  it('keeps an offline capture with its original account until that account signs back in', async () => {
+    getDoc.mockRejectedValueOnce({ code: 'firestore/unavailable' });
+    await headlessTask({
+      notification: {
+        app: 'id.co.bca.mybca',
+        title: 'Financial Diary',
+        text: 'You spent IDR 25.000 at Food.',
+        time: '1796469600900',
+      },
+    });
+    getAuth().currentUser = { uid: 'another-uid' };
+    await flushPendingNotificationExpenses('signed-in-uid');
+    await flushPendingNotificationExpenses('another-uid');
+    expect(mockSavedExpenses.size).toBe(0);
+    expect(mockPendingExpenses.size).toBe(1);
+    getAuth().currentUser = { uid: 'signed-in-uid' };
+    await flushPendingNotificationExpenses('signed-in-uid');
+    expect([...mockSavedExpenses.values()]).toEqual([
+      expect.objectContaining({ userId: 'signed-in-uid' }),
+    ]);
+    expect(mockPendingExpenses.size).toBe(0);
+  });
+
+  it.each([undefined, 'invalid'])(
+    'keeps separate captures when posting time is %s',
+    async time => {
+      const notification = {
+        app: 'id.co.bca.mybca',
+        title: 'Financial Diary',
+        text: 'You spent IDR 25.000 at Food.',
+        time,
+      };
+      await headlessTask({ notification });
+      await headlessTask({ notification });
+
+      expect(mockSavedExpenses.size).toBe(2);
+    },
+  );
 
   it('saves into the signed-in user’s own folder', async () => {
     await headlessTask({
@@ -99,7 +392,7 @@ describe('notification expense headless task', () => {
     expect(setDoc).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        id: 'expense-id-1',
+        id: expect.any(String),
         amount: 250580,
         merchant: 'Food & Beverage',
         category: 'Food & Beverage',
@@ -145,7 +438,7 @@ describe('notification expense headless task', () => {
     expect(setDoc).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        id: 'expense-id-1',
+        id: expect.any(String),
         amount: 68000,
         merchant: '***ANI ***RIA **BR',
         category: 'Income',

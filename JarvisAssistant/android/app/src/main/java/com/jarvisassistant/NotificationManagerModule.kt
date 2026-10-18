@@ -10,6 +10,28 @@ class NotificationManagerModule(private val reactContext: ReactApplicationContex
 
     override fun getName(): String = "NotificationManagerModule"
 
+    private val notificationQueue = lazy { PendingNotificationExpenses(reactContext) }
+
+    @ReactMethod
+    fun enqueueNotificationExpense(userId: String, expenseId: String, payload: String, promise: Promise) {
+        notificationQueue.value.enqueue(userId, expenseId, payload, promise)
+    }
+
+    @ReactMethod
+    fun getPendingNotificationExpenses(userId: String, promise: Promise) {
+        notificationQueue.value.list(userId, promise)
+    }
+
+    @ReactMethod
+    fun removePendingNotificationExpense(userId: String, expenseId: String, promise: Promise) {
+        notificationQueue.value.remove(userId, expenseId, promise)
+    }
+
+    override fun invalidate() {
+        if (notificationQueue.isInitialized()) notificationQueue.value.shutdown()
+        super.invalidate()
+    }
+
     @ReactMethod
     fun rebindListener(promise: Promise) {
         val success = NotificationHelper.rebindListener(reactContext)

@@ -19,9 +19,9 @@ References:
 3. The listener serializes public notification fields such as `app`, `title`, `text`, `bigText`,
    `subText`, `summaryText`, `extraInfoText`, `groupedMessages`, and `time`.
 4. `headlessTask.js` parses only Financial Diary/myBCA spending notifications locally.
-5. Parsed expenses are saved under `users/{uid}/expenses` for the signed-in Firebase user
-   (Google or guest), with a locally generated document ID. Nothing is saved while nobody is
-   signed in, because the Firestore rules would refuse it.
+5. Scrubbed captures are first saved to an account-scoped, app-private Android SQLite queue.
+   When online, a Firestore transaction creates `users/{uid}/expenses/{stableId}` only if absent,
+   then removes the pending entry. Nothing is captured while nobody is signed in.
 6. `App.tsx` subscribes to the same collection, calculates dashboard totals, and exposes category
    edits for each saved expense.
 
@@ -43,6 +43,7 @@ Jarvis implements bank-grade privacy protections designed for Google Play Data S
    - Notification text is parsed 100% on the device CPU using deterministic regex in JavaScript.
    - Raw notification strings and message bodies **never leave the phone** and are never saved to SQLite, MMKV, AsyncStorage, or cloud servers.
    - Only clean, minimal structured data (amount, category, merchant, bank, type, timestamp) is synced to `/users/{userId}/expenses`.
+   - The same scrubbed fields can remain in the app-private pending queue while offline; no raw notification body is queued. The queue lives in `noBackupFilesDir` so Android backups exclude it.
 
 4. **In-App Privacy Transparency Center**:
    - Accessible via Settings > **Privacy & Transparency Center** (`PrivacyTransparencyModal.tsx`).
@@ -55,6 +56,63 @@ headless-only imports must be loaded before those imports. `headlessTask.js` and
 `react-native-get-random-values` before `uuid`, because `uuid` needs `crypto.getRandomValues` in a
 React Native runtime. Without this, the listener can receive the notification but fail before
 Firestore writes the expense.
+
+## Duplicate delivery protection (2026-10-18)
+
+The listener can deliver a notification more than once. Previously every invocation generated
+a random UUID, so each delivery could insert another expense. A notification with a positive,
+safe epoch-millisecond posting time now uses a UUID v5 derived locally from its source package,
+posting time, parsed amount, merchant, and transaction type. This uses the existing `uuid`
+dependency; raw notification text is never stored or sent for identification.
+
+`notificationExpenseStore.ts` first queues the scrubbed capture through
+`NotificationManagerModule`. `PendingNotificationExpenses.kt` uses Android's built-in
+SQLite APIs with a `(user_id, expense_id)` primary key and `INSERT OR IGNORE`, so duplicate
+deliveries cannot replace the first pending capture. Disk work runs on a dedicated executor.
+The database is inside app-private `noBackupFilesDir`, excluded from Android backup, and the
+native bridge rejects payloads with fields outside the scrubbed schema. No new packages are used.
+
+An account-scoped in-flight promise coalesces queue drains. Each entry is reconciled with a
+Firestore transaction: read the stable document, create it only when absent, and remove the
+local entry only after the transaction succeeds. This preserves corrections even when the
+phone has no cached copy, and concurrent clients retry rather than overwrite an existing
+expense. A crash after server commit but before local removal is safe: the replay finds the
+document and clears the pending entry. Transactions fail offline; the durable local capture
+remains for retry, without queueing an unconditional remote overwrite. No rules changes are
+required. Different posting times, amounts, merchants, types, or source packages produce
+separate identities; matching amounts alone never suppress a transaction.
+
+The headless task attempts a drain after enqueue. `App.tsx` also drains when an expense
+snapshot reaches the server, including after reconnection or app restart. There is no new
+background scheduler: if Jarvis is closed when connectivity returns, reconciliation waits
+for the next app open or accepted notification. Offline captures appear on the dashboard
+after reconciliation. A queued account is processed only while that same UID is signed in;
+signing out retains its captures privately for its next sign-in. Clearing app data/uninstalling
+removes unsynced captures. Install a new Android binary for the queue bridge; JS-only updates
+to older binaries cannot capture notifications safely.
+
+Missing/invalid posting times retain random IDs rather than risking suppression of unrelated
+purchases. The installed native listener always supplies `getPostTime()`; it does not expose
+Android's notification key. Two genuinely separate notifications with identical parsed fields
+and the exact same posting millisecond cannot be distinguished by this identity. Reposts with
+a different posting time are separate captures. Existing documents with random IDs and
+historical duplicates are not migrated or deleted by this fix.
+
+Regression coverage is in `__tests__/headlessTask.test.js`: simultaneous/repeated delivery,
+JS restart with saved corrections, separate purchases, account isolation, failed-write retry,
+offline cache miss without overwriting corrections, and recovery of offline captures after
+restart/account switch. `App.test.tsx` verifies server reconnection triggers reconciliation.
+Physical-device notification delivery, queue durability, and offline sync still require
+verification on an installed build.
+
+References:
+
+- [Android notification posting time](https://developer.android.com/reference/android/service/notification/StatusBarNotification#getPostTime())
+- [UUID v5 API](https://github.com/uuidjs/uuid#uuidv5name-namespace-buffer-offset)
+- [Firestore offline persistence and last-write-wins behavior](https://firebase.google.com/docs/firestore/manage-data/enable-offline)
+- [Firestore transaction limitations](https://firebase.google.com/docs/firestore/manage-data/transactions)
+- [Android SQLite APIs](https://developer.android.com/training/data-storage/sqlite)
+- [Android backup exclusions for noBackupFilesDir](https://developer.android.com/identity/data/autobackup#Files)
 
 ## Matching Rule
 

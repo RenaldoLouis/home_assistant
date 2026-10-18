@@ -68,6 +68,7 @@ import {
   buildJarvisSystemInstruction,
 } from './src/services/GeminiLiveService';
 import { ToolExecutionHandlers } from './src/services/JarvisToolExecutor';
+import { flushPendingNotificationExpenses } from './src/notifications/notificationExpenseStore';
 
 
 interface ErrorBoundaryState {
@@ -591,6 +592,9 @@ function SignedInContent({
         expensesRef,
         { includeMetadataChanges: true },
         snapshot => {
+          if (!snapshot.metadata?.fromCache) {
+            flushPendingNotificationExpenses(activeUserId);
+          }
           const savedExpenses = snapshot.docs
             .map(expenseDoc =>
               toEditableExpense(expenseDoc.id, expenseDoc.data()),

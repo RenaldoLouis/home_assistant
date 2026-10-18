@@ -4,7 +4,8 @@
 
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
-import { Linking } from 'react-native';
+import { Linking, NativeModules } from 'react-native';
+import { getAuth } from '@react-native-firebase/auth';
 import {
   collection,
   updateDoc,
@@ -151,6 +152,42 @@ test('renders correctly', async () => {
     ReactTestRenderer.create(<App />);
     await Promise.resolve();
   });
+});
+
+test('retries pending notification captures when expense snapshots reconnect to the server', async () => {
+  const queue = { getPendingNotificationExpenses: jest.fn(async () => []) };
+  const previousQueue = NativeModules.NotificationManagerModule;
+  const previousUser = getAuth().currentUser;
+  NativeModules.NotificationManagerModule = queue;
+  Object.assign(getAuth(), { currentUser: { uid: mockUser.uid } });
+  const firestore = require('@react-native-firebase/firestore');
+  firestore.onSnapshot.mockImplementationOnce(
+    (_ref: unknown, _options: unknown, onNext: (snapshot: unknown) => void) => {
+      mockSnapshotUpdate = onNext;
+      onNext({ docs: [], metadata: { fromCache: true } });
+      return jest.fn();
+    },
+  );
+  let renderer: ReactTestRenderer.ReactTestRenderer | undefined;
+  try {
+    await ReactTestRenderer.act(async () => {
+      renderer = ReactTestRenderer.create(<App />);
+    });
+    expect(queue.getPendingNotificationExpenses).not.toHaveBeenCalled();
+    await ReactTestRenderer.act(async () => {
+      mockSnapshotUpdate({
+        docs: [],
+        metadata: { fromCache: false },
+      } as Parameters<typeof mockSnapshotUpdate>[0]);
+    });
+    expect(queue.getPendingNotificationExpenses).toHaveBeenCalledWith(mockUser.uid);
+  } finally {
+    await ReactTestRenderer.act(async () => {
+      renderer?.unmount();
+    });
+    NativeModules.NotificationManagerModule = previousQueue;
+    Object.assign(getAuth(), { currentUser: previousUser });
+  }
 });
 
 test('guest mode signs in to Firebase instead of opening a shared unauthenticated folder', async () => {

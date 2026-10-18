@@ -38,6 +38,8 @@ flowchart TD
         NL["RNAndroidNotificationListener"]
         Parser["expenseNotificationParser.ts\n(Local regex extraction)"]
         Headless["headlessTask.js"]
+        PendingQueue[("Private Android SQLite\nScrubbed pending captures")]
+        Reconcile["notificationExpenseStore.ts\nCreate-if-absent transaction"]
     end
 
     subgraph Storage["Cloud Firestore"]
@@ -61,7 +63,10 @@ flowchart TD
     Notif --> NL
     NL --> Headless
     Headless --> Parser
-    Parser -->|Structured JSON| FirestoreDB
+    Parser -->|Scrubbed fields| PendingQueue
+    PendingQueue --> Reconcile
+    Reconcile --> FirestoreDB
+    Sync -->|Server reconnection retry| Reconcile
 
     FirestoreDB <-->|Real-time Snapshot| Sync
     Sync --> ReportEngine
@@ -94,7 +99,8 @@ flowchart TD
   - Extracts merchant/recipient, amount, bank, and transaction type (`expense` vs `income`).
   - Sets `dateSource`: prioritizes `notificationTime` (epoch milliseconds from `StatusBarNotification.getPostTime()`) over capture time.
   - Automatically polyfills `react-native-get-random-values` before calling `uuidv4()`.
-  - Writes directly to Firestore `users/{uid}/expenses/{expenseId}` for the signed-in Firebase user (Google or guest). Skips saving when nobody is signed in; see [auth-and-guest-mode.md](auth-and-guest-mode.md).
+  - Uses stable UUID v5 notification identities and an app-private native SQLite queue, reconciled through create-if-absent Firestore transactions. Queue drains are account-scoped and retry on server reconnection; invalid/missing posting times retain random IDs. See [duplicate delivery protection](notification-expense-reader.md#duplicate-delivery-protection-2026-10-18).
+  - Reconciles queued captures to Firestore `users/{uid}/expenses/{expenseId}` for the signed-in Firebase user (Google or guest). Skips capture when nobody is signed in; see [auth-and-guest-mode.md](auth-and-guest-mode.md).
 
 ### Subsystem B: Real-Time Financial Diary & Domain Logic
 Located in `src/expenses/`:
@@ -193,7 +199,8 @@ JarvisAssistant/
 │   └── app/src/main/java/com/jarvisassistant/
 │       ├── LiveAudioModule.kt        # High-performance native PCM 16kHz record & 24kHz playback bridge
 │       ├── LiveAudioPackage.kt       # React Native native module package registration
-│       ├── NotificationManagerModule.kt # Rebind service trigger for notification listener
+│       ├── NotificationManagerModule.kt # Notification listener rebind + pending queue bridge
+│       ├── PendingNotificationExpenses.kt # Private SQLite capture queue, excluded from backups
 │       └── MainActivity.kt / MainApplication.kt
 ├── src/
 │   ├── components/                   # Reusable UI-thread accelerated components
@@ -213,7 +220,8 @@ JarvisAssistant/
 │   │   ├── expenseSummary.ts         # buildDayReport and buildExpenseSummary math engines
 │   │   └── types.ts                  # TypeScript interfaces (EditableExpense, ExpenseEdit, etc.)
 │   ├── notifications/                # Device notification extraction
-│   │   └── expenseNotificationParser.ts # Deterministic regex parser for bank notifications
+│   │   ├── expenseNotificationParser.ts # Deterministic regex parser for bank notifications
+│   │   └── notificationExpenseStore.ts # Account-scoped transactional queue reconciliation
 │   ├── screens/                      # Main screen layouts
 │   │   ├── DashboardScreen.tsx       # Primary spending dashboard, week chart, item list, voice sheet
 │   │   └── DashboardScreen.styles.ts # Extracted styles adhering to Apple HIG & touch target rules
