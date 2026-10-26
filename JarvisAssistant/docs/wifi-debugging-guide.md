@@ -248,9 +248,20 @@ The autolinking cache `android/build/generated/autolinking/autolinking.json` sto
 rm -r android/build/generated/autolinking
 ```
 
+### Build fails: "Included build '…/node_modules/@react-native/gradle-plugin' does not exist"
+
+`node_modules` is missing, usually because it was deleted to free space. Reinstall it from the lockfile, then build again:
+
+```bash
+cd ~/Documents/Personal/Home_Assistant/JarvisAssistant
+npm ci --legacy-peer-deps   # the notification listener declares a React 18 peer; this project uses React 19
+```
+
 ### Build fails: "No space left on device"
 
-A full release build needs a few GB free. Check with `df -h /System/Volumes/Data`, then free space as below.
+Have about **6 GB free** before an arm64 release build. Check with `df -h /System/Volumes/Data`, then free space as below.
+
+Measured on 2026-10-26: one build started with 5.3 GB free and filled the disk while dexing libraries. A second build, with the Gradle cache already warm, started at 5.4 GB and dipped to 1.0 GB. Part of that is macOS swap, which lives on the same disk and grows while Gradle uses a lot of memory (check with `sysctl vm.swapusage`). Swap shrinks again after `./gradlew --stop`.
 
 ---
 
@@ -267,4 +278,6 @@ find node_modules -maxdepth 4 -type d \( -path "*/android/build" -o -path "*/and
 
 Measured on 2026-10-06, this freed about 3.3 GB (2.1 GB of it is native library builds inside `node_modules`). The next build takes longer because native code recompiles.
 
-`~/.gradle/caches` (about 5.7 GB) is Gradle's global download cache, shared by every Android project. Deleting it frees space, but the next build re-downloads several GB, so only clear it when you won't build again soon.
+When storage is tight, delete all of `node_modules` instead of only its native builds (about 1.4 GB after a build, measured 2026-10-26). Restore it with `npm ci --legacy-peer-deps` before the next build or test run.
+
+`~/.gradle/caches` (about 5.7 GB) is Gradle's global download cache, shared by every Android project. Deleting it frees space, but the next build re-downloads several GB, so only clear it when you won't build again soon. Jarvis uses Gradle 9.3.1 (`android/gradle/wrapper/gradle-wrapper.properties`). Folders for other versions, `~/.gradle/caches/<version>` and `~/.gradle/wrapper/dists/gradle-<version>-bin`, can be deleted when no project still uses that version. Gradle 8.12 was removed on 2026-10-26.

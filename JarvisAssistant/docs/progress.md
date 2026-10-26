@@ -1,7 +1,7 @@
 # Jarvis Assistant — Production Release & Progress Roadmap
 
 > **Status Tracker & Living Milestone Document**  
-> **Last Updated**: October 13, 2026  
+> **Last Updated**: October 26, 2026  
 > **Target Release**: Google Play Store (Android Bare Workflow)  
 > **Design Philosophy**: Warm Linen & Botanical Editorial ([docs/design-system.md](design-system.md))
 
@@ -87,7 +87,7 @@
 ---
 
 ### Feature: Investment Transaction Type
-**Status**: `MERGED` to `main` (October 13, 2026) — rules published; not yet built or installed
+**Status**: `MERGED` to `main` (October 13, 2026) — rules published; included in the release builds installed on the S24 FE on October 14 and October 26, 2026
 - [x] Third type `investment` alongside expense and income; `Investment` default category paired with it, like Income
 - [x] Kept out of spending everywhere: day/week totals, bars, month total, daily average, peaks, categories, month-over-month comparison
 - [x] Own totals: day badge, week breakdown, month card and sheet, Jarvis daily/monthly recaps and context
@@ -112,6 +112,19 @@ Details: [auth-and-guest-mode.md](auth-and-guest-mode.md).
 
 ---
 
+### Fix: Duplicate Notification Expenses
+**Status**: `MERGED` ✅ (branch `codex/fix-notification-duplicates` → `main`, October 26, 2026)
+- [x] Root cause: every delivery of a bank notification got a new random ID, so a notification delivered twice (or twice at the same moment) saved two expenses.
+- [x] The reader derives a stable ID (UUID v5) from the scrubbed notification fields and saves with create-if-absent, so a repeat never adds a second expense or overwrites the user's edits.
+- [x] Captures wait in an on-device queue (SQLite in app-private `noBackupFilesDir`, scrubbed fields only) until the server confirms the save, so an offline capture syncs after reconnecting.
+- [x] Tests: 17 suites, 161 tests; TypeScript clean (October 18, 2026).
+- [x] Installed on the S24 FE (arm64 release, wireless ADB, October 26, 2026); the app opened without errors.
+- [ ] Confirm on the phone: a real bank notification saves once, and an offline capture appears after reconnecting.
+
+Details: [notification-expense-reader.md](notification-expense-reader.md).
+
+---
+
 ### Fix: Voice Reply Latency
 **Status**: `MERGED` ✅ (branch `perf/voice-latency` → `main`, October 6, 2026; pending device check)  
 - [x] Measured 5–15 s from end of speech to first audio. Causes: the 2.5 native-audio model thinks before speaking, and the default end-of-speech detection is slow under noise.
@@ -120,7 +133,8 @@ Details: [auth-and-guest-mode.md](auth-and-guest-mode.md).
 - [x] Installed on the S24 FE (arm64 release APK over wireless ADB, October 6, 2026).
 - [x] Confirmed on the S24 FE by the user: replies are much faster.
 - [x] Fixed Jarvis cutting off its own reply on the loudspeaker (echo). The mic sends silence while the reply plays, plus 300 ms (merged to `main`, October 6, 2026).
-- [ ] Build and install the echo fix on the S24 FE (not built yet), then confirm replies no longer get cut off.
+- [x] Echo fix installed on the S24 FE (included in the October 14 and October 26, 2026 release builds).
+- [ ] Confirm replies no longer get cut off on the loudspeaker.
 - [ ] Move to `gemini-3.8-live` once it stops returning `1011 Internal error`. Details: [voice-latency.md](voice-latency.md).
 
 ---
