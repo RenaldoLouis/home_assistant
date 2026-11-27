@@ -459,6 +459,9 @@ Access 365k tokens of past work via get_observations([IDs]) or mem-search skill.
 
 ## Implementation Log / Context History
 
+- 2026-11-25 — Founder selected the ChatGPT mobile app for future Jarvis voice conversations. The first assigned work is personal Boba task retrieval, creation, editing and deletion. [Implementation handoff](JarvisAssistant/docs/chatgpt-voice-boba.md)
+
+
 ### 2026-10-18 — Duplicate notification expense saves
 
 - Reproduced simultaneous delivery of the same notification producing two Firestore writes (`headlessTask.test.js`: expected 1, received 2). Root cause: every invocation assigned a fresh UUID with no duplicate guard.
@@ -475,3 +478,7 @@ Access 365k tokens of past work via get_observations([IDs]) or mem-search skill.
 - After the install, the build output and `node_modules` were deleted again at the user's request to free space (about 2 GB). The Gradle 9.3.1 cache is kept.
 - Merged `codex/fix-notification-duplicates` into `main` (fast-forward, so `main` is exactly the commit tested on Oct 18 plus these docs) and pushed. Docs: `progress.md` gained a Duplicate Notification Expenses section, and the investment type and echo fix are marked as installed (both were already on `main`, so the Oct 14 and Oct 26 builds include them). `wifi-debugging-guide.md` gained the missing-`node_modules` fix, the ~6 GB budget with the swap note, and the extra cleanup steps.
 - Still open: on-device acceptance of the duplicate fix (a real bank notification saves once; offline capture syncs after reconnection), the echo fix on the loudspeaker, and the investment type on the S24 FE.
+
+- 2026-11-25 — Assigned ChatGPT voice migration and personal connector work in JarvisAssistant/docs/chatgpt-voice-boba.md. The Boba project owns Flutter task application and operation acknowledgments.
+- 2026-11-25 — Boba task rules now require the same Google UID as the path plus server-managed personalTaskOwners membership. Six emulator checks passed. Production activation is pending.
+- 2026-11-27 — Completed the runnable personal Boba MCP connector, Google identity lookup, OAuth flow, task tools and emulator verification. Runtime configuration and mobile acceptance are documented in boba-connector/README.md.

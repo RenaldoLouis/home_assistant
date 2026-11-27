@@ -23,6 +23,13 @@ service cloud.firestore {
     match /users/{userId} {
       allow read, write: if isOwner(userId);
 
+      // This allowlist lives outside every client-writable collection.
+      match /tasks/{taskId} {
+        allow read, write: if isOwner(userId)
+          && request.auth.token.firebase.sign_in_provider == 'google.com'
+          && exists(/databases/$(database)/documents/personalTaskOwners/$(userId));
+      }
+
       match /expenses/{expenseId} {
         allow read: if isOwner(userId);
         allow create: if isOwner(userId) && isValidExpense(request.resource.data);
