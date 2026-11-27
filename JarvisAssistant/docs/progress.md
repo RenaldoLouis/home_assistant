@@ -1,5 +1,10 @@
 # Jarvis Assistant — Production Release & Progress Roadmap
 
+## Upcoming assistant integration
+
+- [ ] Implement and verify [Boba task management from ChatGPT Voice](chatgpt-voice-boba.md) on the founder’s phone.
+
+
 > **Status Tracker & Living Milestone Document**  
 > **Last Updated**: October 26, 2026  
 > **Target Release**: Google Play Store (Android Bare Workflow)  
@@ -177,3 +182,4 @@ All work across all phases must adhere to:
 3. **Notification Technical Guide**: [docs/notification-expense-reader.md](notification-expense-reader.md).
 4. **Wifi Debugging Guide**: [docs/wifi-debugging-guide.md](wifi-debugging-guide.md).
 5. **Living Log & Core Rules**: [`agents.md`](../../agents.md).
+- 2026-11-27 — Personal Boba connector implemented under boba-connector. Tests cover authenticated HTTP task operations, offline receipts, retries, owner isolation, confirmed deletion, revocation and the logical day boundary. HTTPS deployment, owner enrollment and live phone acceptance remain pending.
